@@ -27,6 +27,7 @@
 #include "nonlinear-programming/nonlinear_interior_point_method.hpp"
 #include "nonlinear-programming/nonlinear_programming.tpl.hpp"
 #include <limits>
+#include <utility>
 
 namespace Ariadne {
 
@@ -127,6 +128,14 @@ Pair<ValidatedKleenean,FloatDPApproximationVector>
 NonlinearInfeasibleInteriorPointSolver::
 feasible_candidate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const
 {
+    return this->feasible_candidate(std::move(D),std::move(g),std::move(C),24u);
+}
+
+Pair<ValidatedKleenean,FloatDPApproximationVector>
+NonlinearInfeasibleInteriorPointSolver::
+feasible_candidate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
+                   SizeType maximum_steps) const
+{
     LOGGING_SCOPE_CREATE
     LOGGING_PRINTLN("D="<<D<<", g="<<g<<", C="<<C);
 
@@ -150,11 +159,7 @@ feasible_candidate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactB
 
     static const ExactDouble MU_MIN = 1e-12_pr;
 
-    // Use the same iteration budget as minimisation. Twelve steps can
-    // leave a boundary candidate short of the small-barrier stopping
-    // criterion even while the primal residual is still decreasing.
-    static const SizeType MAXIMUM_STEPS=24;
-    for(SizeType i=0; i!=MAXIMUM_STEPS; ++i) {
+    for(SizeType i=0; i!=maximum_steps; ++i) {
         LOGGING_PRINTLN_AT(1,"f(x)="<<f(x)<<", x="<<x<<", y="<<y<<", g(x)="<<g(x));
         try {
             this->step(f,D,g,R,v);

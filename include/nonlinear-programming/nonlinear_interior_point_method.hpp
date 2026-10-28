@@ -62,6 +62,14 @@ class NonlinearInfeasibleInteriorPointSolver
     Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_candidate(
         ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const;
 
+    //! \brief Run at most maximum_steps iterations of candidate search.
+    //! \details A completed iteration does not imply a certificate. When the budget is
+    //! exhausted without validated feasibility or infeasibility, the result is indeterminate.
+    //! The returned candidate remains heuristic and is guaranteed to lie in D.
+    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_candidate(
+        ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
+        SizeType maximum_steps) const;
+
     //! \brief Test if the constraints \f$g(x)\in C\f$ are solvable for \f$x\in D\f$ using a nonlinear feasibility test,
     //! hotstarting the method with the overall primal and dual variables.
     Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C, const PrimalDualData& wxy0) const;

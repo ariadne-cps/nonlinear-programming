@@ -1131,6 +1131,7 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ARIADNE_TEST_CALL(test_numeric_step_failure());
         ARIADNE_TEST_CALL(test_uncertified_minimisation());
         ARIADNE_TEST_CALL(test_candidate_redundant_equalities());
+        ARIADNE_TEST_CALL(test_candidate_iteration_budget());
         ARIADNE_TEST_CALL(test_minimisation_iteration_limit());
     }
 
@@ -1279,6 +1280,25 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ARIADNE_TEST_ASSERT(is_indeterminate(candidate.first));
         ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate.second)));
         ARIADNE_TEST_ASSERT(decide(norm(candidate.second)<1e-8));
+    }
+
+    Void test_candidate_iteration_budget() {
+        auto x=ValidatedScalarMultivariateFunction::coordinates(1);
+        ExactBoxType domain({{0.0_x,1.0_x}});
+        ValidatedVectorMultivariateFunction redundant({x[0],x[0]});
+        ExactBoxType zero_box(2u,ExactIntervalType(0,0));
+
+        // The system is feasible (x=0), but two identical equalities
+        // in one variable prevent the generic Newton correction from
+        // certifying the candidate. One completed numerical iteration
+        // must exhaust the requested budget without claiming a proof.
+        ARIADNE_TEST_ASSERT(optimiser.is_feasible_point(
+            domain,redundant,zero_box,FloatDPVector({0.0_x},dp)));
+
+        auto candidate=optimiser.feasible_candidate(
+            domain,redundant,zero_box,1u);
+        ARIADNE_TEST_ASSERT(is_indeterminate(candidate.first));
+        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate.second)));
     }
 
     Void test_minimisation_iteration_limit() {
