@@ -1151,7 +1151,7 @@ class TestNonlinearInfeasibleInteriorPointSolver : public Ariadne::Testing::Cont
         test_candidate_seven_dimensional();
         test_candidate_nonlinear_seven_dimensional();
         test_candidate_overdetermined();
-        TestNonlinearProgrammingSolver(optimiser).test_infeasible_minimisation_rejects_false_optima();
+        TestNonlinearProgrammingSolver(this->ctx(), optimiser).test_infeasible_minimisation_rejects_false_optima();
         test_stationary_minimisation();
         test_numeric_step_failure();
         test_uncertified_minimisation();
@@ -1558,7 +1558,7 @@ class TestNonlinearPenaltyFunctionSolver : public Ariadne::Testing::ContextFixtu
         // Cover the public driver, all three step overloads, validated
         // contraction and the true/false/indeterminate certificate paths.
         test_penalty_minimisation_unconstrained();
-        TestNonlinearProgrammingSolver(NonlinearPenaltyFunctionSolver()).test_stationary_feasibility();
+        TestNonlinearProgrammingSolver(this->ctx(), NonlinearPenaltyFunctionSolver{}).test_stationary_feasibility();
         test_approximate_penalty_step();
         test_primal_dual_penalty_equality_step();
         test_primal_dual_penalty_backtracking();
