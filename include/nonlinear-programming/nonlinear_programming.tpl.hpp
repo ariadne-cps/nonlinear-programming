@@ -17,7 +17,7 @@
 #include "function/functional.hpp"
 #include <limits>
 
-#include "macro/general.hpp"
+#include "utility/macros.hpp"
 #include "logging/logging.hpp"
 #include "utility/tuple.hpp"
 #include "foundation/logical.hpp"

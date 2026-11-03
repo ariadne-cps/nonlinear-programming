@@ -24,7 +24,7 @@
 
 #include <iostream>
 #include <fstream>
-#include "macro/testing.hpp"
+#include "ariadne-testing.hpp"
 
 #include "numeric/numeric.hpp"
 #include "algebra/vector.hpp"
@@ -37,64 +37,39 @@
 #include "nonlinear-programming/nonlinear_interior_point_method.hpp"
 #include "nonlinear-programming/nonlinear_penalty_function_method.hpp"
 #include "geometry/box.hpp"
-#include "logging/logging_command_line_interface.hpp"
+#include "logging/logging.hpp"
 
 using namespace std;
 using namespace Ariadne;
 
-class TestNonlinearProgrammingSolver
+class TestNonlinearProgrammingSolver : public Ariadne::Testing::ContextFixture
 {
   private:
     std::unique_ptr<NonlinearProgrammingSolverInterface> optimiser;
     DoublePrecision pr;
   public:
-    TestNonlinearProgrammingSolver(const NonlinearProgrammingSolverInterface& opt)
-        : optimiser(opt.clone()) { }
+    TestNonlinearProgrammingSolver(Ariadne::Testing::Context& context,
+                                   const NonlinearProgrammingSolverInterface& opt)
+        : ContextFixture(context), optimiser(opt.clone()) { }
 
-    Void test() {
-        ARIADNE_TEST_CALL(test_feasibility_check());
-        ARIADNE_TEST_CALL(test_unconstrained_optimisation());
-        ARIADNE_TEST_CALL(test_simple_constrained_optimisation());
-        ARIADNE_TEST_CALL(test_linear_feasibility());
-        ARIADNE_TEST_CALL(test_nonlinear_feasibility());
-        ARIADNE_TEST_CALL(test_nonlinear_equality_feasibility());
-        ARIADNE_TEST_CALL(test_common_point_feasibility_and_tolerance());
-        ARIADNE_TEST_CALL(test_base_validation());
-        ARIADNE_TEST_CALL(test_overdetermined_equality_validation());
-        ARIADNE_TEST_CALL(test_validation_dimension_preconditions());
-        ARIADNE_TEST_CALL(test_feasible_box_without_equalities());
-        ARIADNE_TEST_CALL(test_feasible_box_rejections());
-        ARIADNE_TEST_CALL(test_feasible_box_dimension_preconditions());
-        ARIADNE_TEST_CALL(test_feasible_box_singular_equality());
-        ARIADNE_TEST_CALL(test_base_infeasibility());
-        ARIADNE_TEST_CALL(test_unconstrained_infeasibility_certificate());
-        ARIADNE_TEST_CALL(test_equality_solution_rechecks_inequalities());
-        ARIADNE_TEST_CALL(test_infeasible_minimisation_rejects_false_optima());
-        ARIADNE_TEST_CALL(test_common_validation_logging_diagnostics());
-        ARIADNE_TEST_CALL(test_feasibility_dimension_preconditions());
-        ARIADNE_TEST_CALL(test_minimisation_dimension_preconditions());
-        ARIADNE_TEST_CALL(test_stationary_feasibility());
-        ARIADNE_TEST_CALL(test_one_sided_codomain_feasibility());
-        ARIADNE_TEST_CALL(test_unbounded_codomain_feasibility());
-    }
 
     Void test_unconstrained_optimisation() {
         // Test the feasibility of x0>0, x1>0, 2x1+x2<1 using box [0,2]x[0,2]
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(2);
         EffectiveScalarMultivariateFunction x0s = sqr(x[0]);
         EffectiveScalarMultivariateFunction f(x0s*(12+x0s*(Decimal(6.3)+x0s))+6*x[1]*(x[1]-x[0]));
-        ARIADNE_TEST_PRINT(f);
+        ARIADNE_TESTING_NOTE("f = " << (f));
         EffectiveVectorMultivariateFunction g(0u,2u);
-        ARIADNE_TEST_PRINT(g);
+        ARIADNE_TESTING_NOTE("g = " << (g));
         ExactBoxType D=ExactBoxType{{-1,2},{-3,5}};
         ExactBoxType C=ExactBoxType{};
-        ARIADNE_TEST_PRINT(Ariadne::make_tuple(f,D,g,C));
+        ARIADNE_TESTING_NOTE("Ariadne::make_tuple(f,D,g,C) = " << (Ariadne::make_tuple(f,D,g,C)));
 
         FloatDPBoundsVector x_optimal=optimiser->minimise(f,D,g,C);
-        ARIADNE_TEST_BINARY_PREDICATE(element,x_optimal,D);
-        ARIADNE_TEST_BINARY_PREDICATE(element,g(x_optimal),C);
+        ARIADNE_TESTING_EXPECT_BINARY_PREDICATE(element,x_optimal,D);
+        ARIADNE_TESTING_EXPECT_BINARY_PREDICATE(element,g(x_optimal),C);
         //ExactDouble required_accuracy=1e-8_pr;
-        //ARIADNE_TEST_LESS(norm(x_optimal),required_accuracy);
+        //ARIADNE_TESTING_EXPECT_LESS(norm(x_optimal),required_accuracy);
     }
 
 
@@ -102,19 +77,19 @@ class TestNonlinearProgrammingSolver
     Void test_mixed_constrained_optimisation() {
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(3);
         EffectiveScalarMultivariateFunction f(+(sqr(x[0])+sqr(x[1])+x[1]*x[2]));
-        ARIADNE_TEST_PRINT(f);
+        ARIADNE_TESTING_NOTE("f = " << (f));
         ExactBoxType D = ExactBoxType{{-1.0_x,2.0_x},{-3.0_x,5.0_x},{1.25_x,2.25_x}};
-        ARIADNE_TEST_PRINT(D);
+        ARIADNE_TESTING_NOTE("D = " << (D));
         EffectiveScalarMultivariateFunction g = x[0]*x[1]-x[0]*Real(1.25_x);
         EffectiveVectorMultivariateFunction h = {Real(1.5_x)+x[0]+2*x[1]+Real(0.25_x)*x[0]*x[1]};
         EffectiveVectorMultivariateFunction gh=join(g,h);
-        ARIADNE_TEST_PRINT(gh);
+        ARIADNE_TESTING_NOTE("gh = " << (gh));
         ExactBoxType C = ExactBoxType {{-1.0_x,-0.5_x},{0.0_x,0.0_x}};
-        ARIADNE_TEST_PRINT(C);
+        ARIADNE_TESTING_NOTE("C = " << (C));
 
         FloatDPBoundsVector x_optimal=optimiser->minimise(f,D,gh,C);
         ExactDouble required_accuracy=1e-8_pr;
-        ARIADNE_TEST_LESS(norm(h(x_optimal)),required_accuracy);
+        ARIADNE_TESTING_EXPECT_LESS(norm(h(x_optimal)),required_accuracy);
     }
 
     Void test_simple_constrained_optimisation() {
@@ -126,10 +101,10 @@ class TestNonlinearProgrammingSolver
         ExactBoxType D({{0.0_x,1.0_x}});
         ExactBoxType C({{0.25_x,0.75_x}});
         auto optimum=optimiser->minimise(objective,D,g,C);
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
-        ARIADNE_TEST_ASSERT(definitely(contains(D,optimum)));
-        ARIADNE_TEST_ASSERT(definitely(contains(C,g(optimum))));
-        ARIADNE_TEST_ASSERT(definitely(
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_PROVE(definitely(contains(D,optimum)));
+        ARIADNE_TESTING_PROVE(definitely(contains(C,g(optimum))));
+        ARIADNE_TESTING_PROVE(definitely(
             abs(optimum[0]-FloatDPBounds(0.5_x,dp))<FloatDPBounds(0.015625_x,dp)));
     }
 
@@ -137,71 +112,78 @@ class TestNonlinearProgrammingSolver
         // Test the feasibility of x0>0, x1>0, 2x1+x2<1 using box [0,2]x[0,2]
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(2);
         EffectiveVectorMultivariateFunction g=EffectiveVectorMultivariateFunction(1u, 2*x[0]+x[1]);
-        ARIADNE_TEST_PRINT(g);
+        ARIADNE_TESTING_NOTE("g = " << (g));
         ExactBoxType D = ExactBoxType{{0.0_x,2.0_x},{0.0_x,2.0_x}};
         ExactBoxType C = ExactBoxType{{-2.0_x,1.0_x}};
 
-        ARIADNE_TEST_ASSERT(optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(optimiser->feasible(D,g,C));
         C=ExactBoxType{{1.0_x,1.5_x}};
-        ARIADNE_TEST_ASSERT(optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(optimiser->feasible(D,g,C));
         D=ExactBoxType{{1.0_x,1.5_x},{0.5_x,1.0_x}};
-        ARIADNE_TEST_ASSERT(!optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(!optimiser->feasible(D,g,C));
     }
 
     Void test_nonlinear_feasibility() {
         // Test the feasibility of x0>0, x1>0, 2x1+x2<1 using box [0,2]x[0,2]
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(2);
         EffectiveVectorMultivariateFunction g = {2*x[0]+x[1]+x[0]*x[1]/8};
-        ARIADNE_TEST_PRINT(g);
+        ARIADNE_TESTING_NOTE("g = " << (g));
         ExactBoxType D = ExactBoxType{{0.0_x,2.0_x},{0.0_x,2.0_x}};
         ExactBoxType C = ExactBoxType{{-2.0_x,1.0_x}};
 
-        ARIADNE_TEST_ASSERT(optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(optimiser->feasible(D,g,C));
         C=ExactBoxType{{1.0_x,1.5_x}};
-        ARIADNE_TEST_ASSERT(optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(optimiser->feasible(D,g,C));
         D=ExactBoxType{{1.0_x,1.5_x},{0.5_x,1.0_x}};
-        ARIADNE_TEST_ASSERT(!optimiser->feasible(D,g,C));
+        ARIADNE_TESTING_PROVE(!optimiser->feasible(D,g,C));
     }
 
     Void test_nonlinear_equality_feasibility() {
         // Test the feasibility of x0>0, x1>0, 2x1+x2<1 using box [0,2]x[0,2]
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(2);
         EffectiveVectorMultivariateFunction h = { 2*x[0]-x[1]+x[0]*x[1]/8 };
-        ARIADNE_TEST_PRINT(h);
+        ARIADNE_TESTING_NOTE("h = " << (h));
         ExactBoxType D = ExactBoxType{{0.0_x,2.0_x},{0.0_x,2.0_x}};
         ExactBoxType C = ExactBoxType{{0.0_x,0.0_x}};
 
         // (0,0) is an exact feasible witness. Some methods cannot certify
         // this nonlinear equality, but none may claim it is infeasible.
         FloatDPVector witness({0.0_x,0.0_x},pr);
-        ARIADNE_TEST_ASSERT(optimiser->is_feasible_point(D,h,C,witness));
+        ARIADNE_TESTING_PROVE(optimiser->is_feasible_point(D,h,C,witness));
         const auto status=optimiser->feasible(D,h,C);
-        ARIADNE_TEST_ASSERT(!definitely(!status));
+        ARIADNE_TESTING_PROVE(!definitely(!status));
     }
 
     Void test_feasibility_check() {
         EffectiveVectorMultivariateFunction x=EffectiveVectorMultivariateFunction::identity(2);
-        ARIADNE_TEST_CONSTRUCT( EffectiveVectorMultivariateFunction, g, ({sqr(x[0])+2*sqr(x[1])-1}) );
-        ARIADNE_TEST_CONSTRUCT( ExactBoxType, D, ({{-1.0_x, 1.0_x},{-1.0_x,1.0_x}}) );
-        ARIADNE_TEST_CONSTRUCT( ExactBoxType, C, ({{0.0_x,0.0_x}}) );
+        EffectiveVectorMultivariateFunction g({sqr(x[0])+2*sqr(x[1])-1});
+        ARIADNE_TESTING_NOTE("g = " << g);
+        ExactBoxType D({{-1.0_x, 1.0_x},{-1.0_x,1.0_x}});
+        ARIADNE_TESTING_NOTE("D = " << D);
+        ExactBoxType C({{0.0_x,0.0_x}});
+        ARIADNE_TESTING_NOTE("C = " << C);
 
-        ARIADNE_TEST_CONSTRUCT( FloatDPBoundsVector, X1, ({{0.296875_x,0.406250_x},{0.593750_x,0.703125_x}},pr) );
-        ARIADNE_TEST_ASSERT( definitely(optimiser->contains_feasible_point(D,g,C,X1)) );
+        FloatDPBoundsVector X1({{0.296875_x,0.406250_x},{0.593750_x,0.703125_x}},pr);
+        ARIADNE_TESTING_NOTE("X1 = " << X1);
+        ARIADNE_TESTING_PROVE( definitely(optimiser->contains_feasible_point(D,g,C,X1)) );
 
         // The following test fails since it is difficult to find the feasible
         // point in the box.
-        ARIADNE_TEST_CONSTRUCT( FloatDPBoundsVector, X2, ({{0.296875_x,0.406250_x},{0.656250_x,0.656250_x}},pr) );
+        FloatDPBoundsVector X2({{0.296875_x,0.406250_x},{0.656250_x,0.656250_x}},pr);
+        ARIADNE_TESTING_NOTE("X2 = " << X2);
         // X2 does contain a feasible root, but its singleton second
         // coordinate can prevent the interval certificate from succeeding.
         // Indeterminate is sound; definitely false would be incorrect.
         auto x2_status=optimiser->contains_feasible_point(D,g,C,X2);
-        ARIADNE_TEST_ASSERT(!definitely(!x2_status));
+        ARIADNE_TESTING_PROVE(!definitely(!x2_status));
 
-        ARIADNE_TEST_CONSTRUCT( FloatDPBoundsVector, X3, ({{0.296875_x,0.406250_x},{0.656250_x,0.687500_x}},pr) );
-        ARIADNE_TEST_ASSERT( definitely(optimiser->contains_feasible_point(D,g,C,X3)) );
+        FloatDPBoundsVector X3({{0.296875_x,0.406250_x},{0.656250_x,0.687500_x}},pr);
+        ARIADNE_TESTING_NOTE("X3 = " << X3);
+        ARIADNE_TESTING_PROVE( definitely(optimiser->contains_feasible_point(D,g,C,X3)) );
 
-        ARIADNE_TEST_CONSTRUCT(FloatDPVector, x2, ({0.343750_x,0.656250_x},pr) );
-        ARIADNE_TEST_ASSERT( optimiser->validate_feasibility(D,g,C,x2) );
+        FloatDPVector x2({0.343750_x,0.656250_x},pr);
+        ARIADNE_TESTING_NOTE("x2 = " << x2);
+        ARIADNE_TESTING_PROVE( optimiser->validate_feasibility(D,g,C,x2) );
     }
 
 
@@ -222,16 +204,16 @@ class TestNonlinearProgrammingSolver
         FloatDPApproximation zero_tolerance(0,dp);
         FloatDPApproximation quarter_tolerance(0.25_x,dp);
 
-        ARIADNE_TEST_ASSERT(optimiser->is_feasible_point(D,g,C,inside));
-        ARIADNE_TEST_ASSERT(!optimiser->is_feasible_point(D,g,C,outside));
-        ARIADNE_TEST_ASSERT(!optimiser->is_feasible_point(D,g,C,beyond_domain));
-        ARIADNE_TEST_ASSERT(optimiser->almost_feasible_point(
+        ARIADNE_TESTING_PROVE(optimiser->is_feasible_point(D,g,C,inside));
+        ARIADNE_TESTING_PROVE(!optimiser->is_feasible_point(D,g,C,outside));
+        ARIADNE_TESTING_PROVE(!optimiser->is_feasible_point(D,g,C,beyond_domain));
+        ARIADNE_TESTING_PROVE(optimiser->almost_feasible_point(
             D,g,C,approx_inside,zero_tolerance));
-        ARIADNE_TEST_ASSERT(!optimiser->almost_feasible_point(
+        ARIADNE_TESTING_PROVE(!optimiser->almost_feasible_point(
             D,g,C,approx_outside,zero_tolerance));
-        ARIADNE_TEST_ASSERT(optimiser->almost_feasible_point(
+        ARIADNE_TESTING_PROVE(optimiser->almost_feasible_point(
             D,g,C,approx_outside,quarter_tolerance));
-        ARIADNE_TEST_ASSERT(!optimiser->almost_feasible_point(
+        ARIADNE_TESTING_PROVE(!optimiser->almost_feasible_point(
             D,g,C,approx_beyond_domain,quarter_tolerance));
     }
 
@@ -243,8 +225,8 @@ class TestNonlinearProgrammingSolver
         FloatDPVector point({0.5_x},dp);
         FloatDPVector outside({0.875_x},dp);
         FloatDPVector multiplier({1.0_x},dp);
-        ARIADNE_TEST_ASSERT(optimiser->validate_feasibility(D,g,C,point,multiplier));
-        ARIADNE_TEST_ASSERT(!optimiser->validate_feasibility(D,g,C,outside,multiplier));
+        ARIADNE_TESTING_PROVE(optimiser->validate_feasibility(D,g,C,point,multiplier));
+        ARIADNE_TESTING_PROVE(!optimiser->validate_feasibility(D,g,C,outside,multiplier));
     }
 
     Void test_overdetermined_equality_validation() {
@@ -258,7 +240,7 @@ class TestNonlinearProgrammingSolver
         ExactBoxType equalities({{0.0_x,0.0_x},{1.0_x,1.0_x}});
         FloatDPVector initial({0.0_x},dp);
 
-        ARIADNE_TEST_ASSERT(!optimiser->validate_feasibility(
+        ARIADNE_TESTING_PROVE(!optimiser->validate_feasibility(
             domain,g,equalities,initial));
     }
 
@@ -276,20 +258,20 @@ class TestNonlinearProgrammingSolver
         FloatDPVector multiplier({1.0_x},dp);
         FloatDPVector wrong_multiplier({1.0_x,1.0_x},dp);
 
-        ARIADNE_TEST_FAIL(optimiser->validate_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_feasibility(
             wrong_domain,g,constraints,point));
-        ARIADNE_TEST_FAIL(optimiser->validate_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_feasibility(
             domain,g,wrong_constraints,point));
-        ARIADNE_TEST_FAIL(optimiser->validate_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_feasibility(
             domain,g,constraints,wrong_point));
 
-        ARIADNE_TEST_FAIL(optimiser->validate_infeasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_infeasibility(
             wrong_domain,g,constraints,point,multiplier));
-        ARIADNE_TEST_FAIL(optimiser->validate_infeasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_infeasibility(
             domain,g,wrong_constraints,point,multiplier));
-        ARIADNE_TEST_FAIL(optimiser->validate_infeasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_infeasibility(
             domain,g,constraints,wrong_point,multiplier));
-        ARIADNE_TEST_FAIL(optimiser->validate_infeasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->validate_infeasibility(
             domain,g,constraints,point,wrong_multiplier));
     }
 
@@ -299,7 +281,7 @@ class TestNonlinearProgrammingSolver
         ExactBoxType D({{0.0_x,1.0_x}});
         ExactBoxType C({{-1.0_x,2.0_x}});
         FloatDPBoundsVector box({{0.25_x,0.75_x}},dp);
-        ARIADNE_TEST_ASSERT(definitely(optimiser->contains_feasible_point(D,g,C,box)));
+        ARIADNE_TESTING_PROVE(definitely(optimiser->contains_feasible_point(D,g,C,box)));
     }
 
     Void test_feasible_box_rejections() {
@@ -314,24 +296,24 @@ class TestNonlinearProgrammingSolver
         FloatDPBoundsVector boundary({{0.75_x,1.25_x}},dp);
 
         auto domain_disjoint=optimiser->contains_feasible_point(D,g,wide,outside);
-        ARIADNE_TEST_ASSERT(definitely(not domain_disjoint));
+        ARIADNE_TESTING_PROVE(definitely(not domain_disjoint));
 
         auto domain_partial=optimiser->contains_feasible_point(D,g,wide,boundary);
-        ARIADNE_TEST_ASSERT(!definitely(domain_partial));
-        ARIADNE_TEST_ASSERT(!definitely(not domain_partial));
+        ARIADNE_TESTING_PROVE(!definitely(domain_partial));
+        ARIADNE_TESTING_PROVE(!definitely(not domain_partial));
 
         // X overlaps D, but every point satisfying C lies outside D.
         // A partial overlap cannot establish a feasible point in X.
         ExactBoxType beyond_domain({{1.125_x,1.375_x}});
         auto separated_inside_domain=optimiser->contains_feasible_point(D,g,beyond_domain,boundary);
-        ARIADNE_TEST_ASSERT(!definitely(separated_inside_domain));
+        ARIADNE_TESTING_PROVE(!definitely(separated_inside_domain));
 
         auto constraint_disjoint=optimiser->contains_feasible_point(D,g,disjoint,inside);
-        ARIADNE_TEST_ASSERT(definitely(not constraint_disjoint));
+        ARIADNE_TESTING_PROVE(definitely(not constraint_disjoint));
 
         auto constraint_overlap=optimiser->contains_feasible_point(D,g,overlap,inside);
-        ARIADNE_TEST_ASSERT(!definitely(constraint_overlap));
-        ARIADNE_TEST_ASSERT(!definitely(not constraint_overlap));
+        ARIADNE_TESTING_PROVE(!definitely(constraint_overlap));
+        ARIADNE_TESTING_PROVE(!definitely(not constraint_overlap));
     }
 
     Void test_feasible_box_dimension_preconditions() {
@@ -346,11 +328,11 @@ class TestNonlinearProgrammingSolver
         FloatDPBoundsVector box({{0.25_x,0.75_x}},dp);
         FloatDPBoundsVector wrong_box({{0.25_x,0.75_x},{0.25_x,0.75_x}},dp);
 
-        ARIADNE_TEST_FAIL(optimiser->contains_feasible_point(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->contains_feasible_point(
             wrong_domain,g,codomain,box));
-        ARIADNE_TEST_FAIL(optimiser->contains_feasible_point(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->contains_feasible_point(
             domain,g,wrong_codomain,box));
-        ARIADNE_TEST_FAIL(optimiser->contains_feasible_point(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->contains_feasible_point(
             domain,g,codomain,wrong_box));
     }
 
@@ -361,8 +343,8 @@ class TestNonlinearProgrammingSolver
         ExactBoxType C({{0.0_x,0.0_x}});
         FloatDPBoundsVector box({{0.25_x,0.75_x}},dp);
         auto status=optimiser->contains_feasible_point(D,g,C,box);
-        ARIADNE_TEST_ASSERT(!definitely(status));
-        ARIADNE_TEST_ASSERT(!definitely(not status));
+        ARIADNE_TESTING_PROVE(!definitely(status));
+        ARIADNE_TESTING_PROVE(!definitely(not status));
     }
 
     Void test_base_infeasibility() {
@@ -373,8 +355,8 @@ class TestNonlinearProgrammingSolver
         ExactBoxType overlap({{0.0_x,1.0_x}});
         FloatDPVector centre({0.5_x},dp);
         FloatDPVector multiplier({1.0_x},dp);
-        ARIADNE_TEST_ASSERT(optimiser->validate_infeasibility(D,g,far,centre,multiplier));
-        ARIADNE_TEST_ASSERT(!optimiser->validate_infeasibility(D,g,overlap,centre,multiplier));
+        ARIADNE_TESTING_PROVE(optimiser->validate_infeasibility(D,g,far,centre,multiplier));
+        ARIADNE_TESTING_PROVE(!optimiser->validate_infeasibility(D,g,overlap,centre,multiplier));
     }
 
     Void test_unconstrained_infeasibility_certificate() {
@@ -385,10 +367,10 @@ class TestNonlinearProgrammingSolver
         ExactBoxType empty_domain=intersection(D,outside);
         FloatDPVector multipliers(0u,dp);
 
-        ARIADNE_TEST_ASSERT(!D.is_empty());
-        ARIADNE_TEST_ASSERT(empty_domain.is_empty());
-        ARIADNE_TEST_ASSERT(!optimiser->is_infeasibility_certificate(D,g,C,multipliers));
-        ARIADNE_TEST_ASSERT(optimiser->is_infeasibility_certificate(
+        ARIADNE_TESTING_PROVE(!D.is_empty());
+        ARIADNE_TESTING_PROVE(empty_domain.is_empty());
+        ARIADNE_TESTING_PROVE(!optimiser->is_infeasibility_certificate(D,g,C,multipliers));
+        ARIADNE_TESTING_PROVE(optimiser->is_infeasibility_certificate(
             empty_domain,g,C,multipliers));
     }
 
@@ -403,8 +385,8 @@ class TestNonlinearProgrammingSolver
         // The equality has its only root at x=0.5. Both inequality
         // codomains accept the initial guess, but only one accepts
         // the validated equality solution.
-        ARIADNE_TEST_ASSERT(optimiser->validate_feasibility(D,g,permissive,initial));
-        ARIADNE_TEST_ASSERT(!optimiser->validate_feasibility(D,g,restrictive,initial));
+        ARIADNE_TESTING_PROVE(optimiser->validate_feasibility(D,g,permissive,initial));
+        ARIADNE_TESTING_PROVE(!optimiser->validate_feasibility(D,g,restrictive,initial));
     }
 
     Void test_infeasible_minimisation_rejects_false_optima() {
@@ -419,8 +401,8 @@ class TestNonlinearProgrammingSolver
         ExactBoxType positive({{1.25_x,1.75_x}});
         ExactBoxType negative({{-1.75_x,-1.25_x}});
 
-        ARIADNE_TEST_ASSERT(definitely(disjoint(Ariadne::apply(g,domain),positive)));
-        ARIADNE_TEST_ASSERT(definitely(disjoint(Ariadne::apply(g,domain),negative)));
+        ARIADNE_TESTING_PROVE(definitely(disjoint(Ariadne::apply(g,domain),positive)));
+        ARIADNE_TESTING_PROVE(definitely(disjoint(Ariadne::apply(g,domain),negative)));
 
         for(SizeType i=0u; i!=2u; ++i) {
             const ExactBoxType& codomain=(i==0u ? positive : negative);
@@ -432,7 +414,7 @@ class TestNonlinearProgrammingSolver
             } catch(const IndeterminateFeasibilityException&) {
                 rejected=true;
             }
-            ARIADNE_TEST_ASSERT(rejected);
+            ARIADNE_TESTING_PROVE(rejected);
         }
     }
 
@@ -455,21 +437,21 @@ class TestNonlinearProgrammingSolver
         FloatDPVector multiplier({1.0_x},dp);
         FloatDPBoundsVector interior({{0.25_x,0.75_x}},dp);
 
-        ARIADNE_TEST_ASSERT(optimiser->validate_feasibility(
+        ARIADNE_TESTING_PROVE(optimiser->validate_feasibility(
             domain,g,inequality,feasible_point));
-        ARIADNE_TEST_ASSERT(!optimiser->validate_feasibility(
+        ARIADNE_TESTING_PROVE(!optimiser->validate_feasibility(
             domain,g,inequality,infeasible_point));
-        ARIADNE_TEST_ASSERT(optimiser->validate_feasibility(
+        ARIADNE_TESTING_PROVE(optimiser->validate_feasibility(
             domain,g,equality,initial));
-        ARIADNE_TEST_ASSERT(definitely(optimiser->contains_feasible_point(
+        ARIADNE_TESTING_PROVE(definitely(optimiser->contains_feasible_point(
             domain,g,inequality,interior)));
-        ARIADNE_TEST_ASSERT(definitely(optimiser->contains_feasible_point(
+        ARIADNE_TESTING_PROVE(definitely(optimiser->contains_feasible_point(
             domain,g,equality,interior)));
-        ARIADNE_TEST_ASSERT(optimiser->validate_infeasibility(
+        ARIADNE_TESTING_PROVE(optimiser->validate_infeasibility(
             domain,g,infeasible,initial,multiplier));
-        ARIADNE_TEST_ASSERT(!optimiser->validate_infeasibility(
+        ARIADNE_TESTING_PROVE(!optimiser->validate_infeasibility(
             domain,g,inequality,initial,multiplier));
-        ARIADNE_TEST_ASSERT(optimiser->is_infeasibility_certificate(
+        ARIADNE_TESTING_PROVE(optimiser->is_infeasibility_certificate(
             domain,g,infeasible,multiplier));
 
         configuration.set_verbosity(old_verbosity);
@@ -485,8 +467,8 @@ class TestNonlinearProgrammingSolver
         ExactBoxType wrong_domain({{0.0_x,1.0_x},{0.0_x,1.0_x}});
         ExactBoxType wrong_codomain({{0.0_x,1.0_x},{0.0_x,1.0_x}});
 
-        ARIADNE_TEST_FAIL(optimiser->feasible(wrong_domain,g,codomain));
-        ARIADNE_TEST_FAIL(optimiser->feasible(domain,g,wrong_codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->feasible(wrong_domain,g,codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser->feasible(domain,g,wrong_codomain));
     }
 
     Void test_minimisation_dimension_preconditions() {
@@ -503,12 +485,9 @@ class TestNonlinearProgrammingSolver
         ExactBoxType codomain({{0.25_x,0.75_x}});
         ExactBoxType wrong_codomain({{0.25_x,0.75_x},{0.25_x,0.75_x}});
 
-        ARIADNE_TEST_THROWS(optimiser->minimise(wrong_f,domain,g,codomain),
-                            std::runtime_error);
-        ARIADNE_TEST_THROWS(optimiser->minimise(f,domain,wrong_g,codomain),
-                            std::runtime_error);
-        ARIADNE_TEST_THROWS(optimiser->minimise(f,domain,g,wrong_codomain),
-                            std::runtime_error);
+        ARIADNE_TESTING_EXPECT_THROWS(std::runtime_error, optimiser->minimise(wrong_f,domain,g,codomain));
+        ARIADNE_TESTING_EXPECT_THROWS(std::runtime_error, optimiser->minimise(f,domain,wrong_g,codomain));
+        ARIADNE_TESTING_EXPECT_THROWS(std::runtime_error, optimiser->minimise(f,domain,g,wrong_codomain));
     }
 
     Void test_stationary_feasibility() {
@@ -520,7 +499,7 @@ class TestNonlinearProgrammingSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType codomain({{-1.0_x,1.0_x}});
 
-        ARIADNE_TEST_ASSERT(definitely(optimiser->feasible(domain,g,codomain)));
+        ARIADNE_TESTING_PROVE(definitely(optimiser->feasible(domain,g,codomain)));
     }
 
     Void test_one_sided_codomain_feasibility() {
@@ -532,8 +511,8 @@ class TestNonlinearProgrammingSolver
         ExactBoxType upper_only({{-inf,1.0_x}});
         ExactBoxType lower_only({{-1.0_x,+inf}});
 
-        ARIADNE_TEST_ASSERT(definitely(optimiser->feasible(domain,g,upper_only)));
-        ARIADNE_TEST_ASSERT(definitely(optimiser->feasible(domain,g,lower_only)));
+        ARIADNE_TESTING_PROVE(definitely(optimiser->feasible(domain,g,upper_only)));
+        ARIADNE_TESTING_PROVE(definitely(optimiser->feasible(domain,g,lower_only)));
     }
 
     Void test_unbounded_codomain_feasibility() {
@@ -546,7 +525,7 @@ class TestNonlinearProgrammingSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType unconstrained_codomain({{-inf,+inf}});
 
-        ARIADNE_TEST_ASSERT(definitely(
+        ARIADNE_TESTING_PROVE(definitely(
             optimiser->feasible(domain,g,unconstrained_codomain)));
     }
 
@@ -592,11 +571,11 @@ class NonlinearAdapterProbe : public NonlinearProgrammingSolverBase {
     }
 };
 
-class TestNonlinearAdapterProbe {
+class TestNonlinearAdapterProbe : public Ariadne::Testing::ContextFixture
+{
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_standard_form());
-    }
+    using ContextFixture::ContextFixture;
+  public:
 
     Void test_standard_form() {
         NonlinearAdapterProbe solver;
@@ -607,37 +586,20 @@ class TestNonlinearAdapterProbe {
         ExactBoxType D({{0.0_x,1.0_x}});
 
         auto minimiser=solver.minimise(f,D,g,h);
-        ARIADNE_TEST_EQUAL(minimiser.size(),1u);
-        ARIADNE_TEST_EQUAL(solver.minimise_calls,1u);
-        ARIADNE_TEST_ASSERT(solver.correct_constraints);
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(D,g,h)));
-        ARIADNE_TEST_EQUAL(solver.feasible_calls,1u);
-        ARIADNE_TEST_ASSERT(solver.correct_constraints);
+        ARIADNE_TESTING_EXPECT_EQUAL(minimiser.size(),1u);
+        ARIADNE_TESTING_EXPECT_EQUAL(solver.minimise_calls,1u);
+        ARIADNE_TESTING_PROVE(solver.correct_constraints);
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(D,g,h)));
+        ARIADNE_TESTING_EXPECT_EQUAL(solver.feasible_calls,1u);
+        ARIADNE_TESTING_PROVE(solver.correct_constraints);
     }
 };
 
-class TestNonlinearInteriorPointSolver {
+class TestNonlinearInteriorPointSolver : public Ariadne::Testing::ContextFixture
+{
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_logging_diagnostics());
-        ARIADNE_TEST_CALL(test_disjoint_constraint_minimisation());
-        ARIADNE_TEST_CALL(test_relaxation_parameter());
-        ARIADNE_TEST_CALL(test_initial_feasibility_state());
-        ARIADNE_TEST_CALL(test_feasibility_results());
-        ARIADNE_TEST_CALL(test_feasibility_steps());
-        ARIADNE_TEST_CALL(test_singular_feasibility_step());
-        ARIADNE_TEST_CALL(test_feasibility_numerical_failures());
-        ARIADNE_TEST_CALL(test_feasibility_state_preconditions());
-        ARIADNE_TEST_CALL(test_feasible_interior_minimisation());
-        ARIADNE_TEST_CALL(test_unconstrained_minimisation());
-        ARIADNE_TEST_CALL(test_rejects_uncertified_minimum());
-        ARIADNE_TEST_CALL(test_minimisation_step_exhausts_backtracking());
-        ARIADNE_TEST_CALL(test_nonlinear_equality_minimisation_backtracking());
-        ARIADNE_TEST_CALL(test_stationary_minimisation_step());
-#ifndef NDEBUG
-        ARIADNE_TEST_CALL(test_minimisation_step_debug_preconditions());
-#endif
-    }
+    using ContextFixture::ContextFixture;
+  public:
 
 #ifndef NDEBUG
     Void test_minimisation_step_debug_preconditions() {
@@ -663,23 +625,23 @@ class TestNonlinearInteriorPointSolver {
         FloatDPApproximation zero_mu(0.0_x,dp);
         FloatDPApproximation positive_mu(0.25_x,dp);
 
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,h,point,wrong_size,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             wrong_objective,domain,g,codomain,h,point,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,wrong_arguments,codomain,h,point,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,wrong_arguments,point,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,wrong_results,codomain,h,point,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,wrong_results,point,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,h,outside,slack,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,h,point,outside,kappa,lambda,positive_mu));
-        ARIADNE_TEST_FAIL(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimisation_step(
             objective,domain,g,codomain,h,point,slack,kappa,lambda,zero_mu));
     }
 #endif
@@ -717,36 +679,36 @@ class TestNonlinearInteriorPointSolver {
         ExactBoxType domain({{0.0_x,1.0_x}});
         ValidatedVectorMultivariateFunction identity({x[0]});
         // Certify midpoint witnesses, including equality and vacuous constraints.
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{0.25_x,0.75_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{0.5_x,0.5_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,ValidatedVectorMultivariateFunction(0u,1u),ExactBoxType{})));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{0.25_x,0.75_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{0.5_x,0.5_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,ValidatedVectorMultivariateFunction(0u,1u),ExactBoxType{})));
         // These witnesses require actual steps away from the infeasible midpoint.
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{0.75_x,1.0_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{0.75_x,inf}}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{-inf,0.25_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,identity,ExactBoxType({{-inf,inf}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{0.75_x,1.0_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{0.75_x,inf}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{-inf,0.25_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,identity,ExactBoxType({{-inf,inf}}))));
         ValidatedVectorMultivariateFunction nonlinear({sqr(x[0])});
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(domain,nonlinear,ExactBoxType({{0.75_x,1.0_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(domain,nonlinear,ExactBoxType({{0.75_x,1.0_x}}))));
         auto xy=ValidatedScalarMultivariateFunction::coordinates(2);
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible(
             ExactBoxType({{0.0_x,1.0_x},{0.0_x,1.0_x}}),
             ValidatedVectorMultivariateFunction({xy[0]+xy[1]}),ExactBoxType({{1.5_x,2.0_x}}))));
         // Both individual constraint ranges intersect [0,1], but no x can
         // satisfy x<=1/4 and x>=3/4. Signed facet weights certify the conflict.
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(domain,
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(domain,
             ValidatedVectorMultivariateFunction({x[0],x[0]}),
             ExactBoxType({{0.0_x,0.25_x},{0.75_x,1.0_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(domain,identity,ExactBoxType({{2.0_x,3.0_x}}))));
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(ExactBoxType({{1.0_x,0.0_x}}),identity,domain)));
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(domain,identity,ExactBoxType({{1.0_x,0.0_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(domain,identity,ExactBoxType({{2.0_x,3.0_x}}))));
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(ExactBoxType({{1.0_x,0.0_x}}),identity,domain)));
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(domain,identity,ExactBoxType({{1.0_x,0.0_x}}))));
         // At the stationary midpoint of x^2 there is no numerical direction.
         // Neither its negative margin nor iteration exhaustion proves infeasibility:
         // x=3/4 remains a witness, so the solver must return indeterminate.
         ExactBoxType symmetric({{-1.0_x,1.0_x}}), target({{0.5_x,0.75_x}});
-        ARIADNE_TEST_ASSERT(solver.is_feasible_point(symmetric,nonlinear,target,FloatDPVector({0.75_x},dp)));
+        ARIADNE_TESTING_PROVE(solver.is_feasible_point(symmetric,nonlinear,target,FloatDPVector({0.75_x},dp)));
         auto uncertain=solver.feasible(symmetric,nonlinear,target);
-        ARIADNE_TEST_ASSERT(!definitely(uncertain));
-        ARIADNE_TEST_ASSERT(!definitely(!uncertain));
+        ARIADNE_TESTING_PROVE(!definitely(uncertain));
+        ARIADNE_TESTING_PROVE(!definitely(!uncertain));
     }
 
     Void test_feasibility_steps() {
@@ -757,46 +719,46 @@ class TestNonlinearInteriorPointSolver {
         FloatDPApproximationVector weights,point;
         FloatDPApproximation margin(dp);
         solver.setup_feasibility(domain,g,target,weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(margin==-1.5_approx));
+        ARIADNE_TESTING_PROVE(decide(margin==-1.5_approx));
         solver.feasibility_step(domain,g,target,weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(margin> -1.5_approx));
-        ARIADNE_TEST_ASSERT(decide(point[0]>0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(point[0]<1.0_approx));
-        ARIADNE_TEST_ASSERT(decide(g(point)[0]-target[0].lower_bound()>margin));
-        ARIADNE_TEST_ASSERT(decide(target[0].upper_bound()-g(point)[0]>margin));
-        for(SizeType k=0; k!=weights.size(); ++k) { ARIADNE_TEST_ASSERT(decide(weights[k]>0)); }
-        ARIADNE_TEST_ASSERT(decide(abs(dot(weights,FloatDPApproximationVector(4u,FloatDPApproximation(1,dp)))-1)<0x1p-40_x));
+        ARIADNE_TESTING_PROVE(decide(margin> -1.5_approx));
+        ARIADNE_TESTING_PROVE(decide(point[0]>0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(point[0]<1.0_approx));
+        ARIADNE_TESTING_PROVE(decide(g(point)[0]-target[0].lower_bound()>margin));
+        ARIADNE_TESTING_PROVE(decide(target[0].upper_bound()-g(point)[0]>margin));
+        for(SizeType k=0; k!=weights.size(); ++k) { ARIADNE_TESTING_PROVE(decide(weights[k]>0)); }
+        ARIADNE_TESTING_PROVE(decide(abs(dot(weights,FloatDPApproximationVector(4u,FloatDPApproximation(1,dp)))-1)<0x1p-40_x));
         // The convenience overload uses the same initial margin and step.
         FloatDPApproximationVector restarted_weights,restarted_point;
         solver.setup_feasibility(domain,g,target,restarted_weights,restarted_point);
         solver.feasibility_step(domain,g,target,restarted_weights,restarted_point);
-        ARIADNE_TEST_ASSERT(decide(restarted_point[0]==point[0]));
+        ARIADNE_TESTING_PROVE(decide(restarted_point[0]==point[0]));
         for(SizeType k=0; k!=weights.size(); ++k) {
-            ARIADNE_TEST_ASSERT(decide(restarted_weights[k]==weights[k]));
+            ARIADNE_TESTING_PROVE(decide(restarted_weights[k]==weights[k]));
         }
         // Inactive facets have zero weight, not infinite slacks in the KKT system.
         ExactBoxType one_sided({{0.75_x,inf}});
         ValidatedVectorMultivariateFunction affine({x[0]});
         solver.setup_feasibility(domain,affine,one_sided,weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(weights[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[0]==0.0_approx));
         solver.feasibility_step(domain,affine,one_sided,weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(weights[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(decide(point[0]>0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(point[0]>0.5_approx));
         // A zero-dimensional, unconstrained problem has no barrier facets.
         ValidatedVectorMultivariateFunction vacuous(0u,0u);
         solver.setup_feasibility(ExactBoxType{},vacuous,ExactBoxType{},weights,point,margin);
         solver.feasibility_step(ExactBoxType{},vacuous,ExactBoxType{},weights,point,margin);
-        ARIADNE_TEST_EQUAL(weights.size(),0u);
-        ARIADNE_TEST_EQUAL(point.size(),0u);
-        ARIADNE_TEST_ASSERT(decide(margin==0.0_approx));
+        ARIADNE_TESTING_EXPECT_EQUAL(weights.size(),0u);
+        ARIADNE_TESTING_EXPECT_EQUAL(point.size(),0u);
+        ARIADNE_TESTING_PROVE(decide(margin==0.0_approx));
         // Constant unconstrained output: all potential facets are inactive.
         auto constant=ValidatedScalarMultivariateFunction::constant(0u,0.0_x);
         ValidatedVectorMultivariateFunction unconstrained({constant});
         solver.setup_feasibility(ExactBoxType{},unconstrained,ExactBoxType({{-inf,inf}}),weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(weights[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(decide(weights[1]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[1]==0.0_approx));
         solver.feasibility_step(ExactBoxType{},unconstrained,ExactBoxType({{-inf,inf}}),weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(margin==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(margin==0.0_approx));
     }
 
     Void test_singular_feasibility_step() {
@@ -809,11 +771,11 @@ class TestNonlinearInteriorPointSolver {
         FloatDPApproximation margin(-1.0_x,dp);
         // Positive normalised weights and strict slacks, but the negative
         // constraint curvature cancels the domain barrier curvature exactly.
-        ARIADNE_TEST_THROWS(solver.feasibility_step(domain,g,target,weights,point,margin),SingularMatrixException);
-        ARIADNE_TEST_ASSERT(decide(point[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(decide(margin== -1.0_approx));
-        ARIADNE_TEST_ASSERT(decide(weights[0]==0.3125_approx));
-        ARIADNE_TEST_ASSERT(decide(weights[1]==0.1875_approx));
+        ARIADNE_TESTING_EXPECT_THROWS(SingularMatrixException, solver.feasibility_step(domain,g,target,weights,point,margin));
+        ARIADNE_TESTING_PROVE(decide(point[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(margin== -1.0_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[0]==0.3125_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[1]==0.1875_approx));
     }
 
     Void test_feasibility_numerical_failures() {
@@ -827,26 +789,26 @@ class TestNonlinearInteriorPointSolver {
         // curvature exactly cancels the domain barrier curvature. The driver
         // can still certify infeasibility from the initial signed weights.
         solver.setup_feasibility(symmetric,concave_barrier,nonnegative,weights,point,margin);
-        ARIADNE_TEST_THROWS(solver.feasibility_step(
-            symmetric,concave_barrier,nonnegative,weights,point,margin),SingularMatrixException);
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(symmetric,concave_barrier,nonnegative)));
+        ARIADNE_TESTING_EXPECT_THROWS(SingularMatrixException, solver.feasibility_step(
+            symmetric,concave_barrier,nonnegative,weights,point,margin));
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(symmetric,concave_barrier,nonnegative)));
 
         // Nearly cancelled barrier curvature can also exhaust backtracking
         // from the ordinary initial state. Regardless of numerical rounding,
         // the validated range proves that g stays strictly below zero on D.
         ValidatedVectorMultivariateFunction nearly_singular({
             Real(0x1.9249249249249p-2_x)*sqr(x[0])+x[0]-1.5_x});
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible(symmetric,nearly_singular,nonnegative)));
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible(symmetric,nearly_singular,nonnegative)));
 
         ExactBoxType domain({{0.0_x,1.0_x}}), badly_scaled({{0.75_x,0x1p60_x}});
         ValidatedVectorMultivariateFunction identity({x[0]});
         solver.setup_feasibility(domain,identity,badly_scaled,weights,point,margin);
         // Iteration exhaustion with a very distant upper bound must not
         // turn failure to find a witness into an infeasibility claim.
-        ARIADNE_TEST_ASSERT(solver.is_feasible_point(domain,identity,badly_scaled,FloatDPVector({1.0_x},dp)));
+        ARIADNE_TESTING_PROVE(solver.is_feasible_point(domain,identity,badly_scaled,FloatDPVector({1.0_x},dp)));
         auto uncertain=solver.feasible(domain,identity,badly_scaled);
-        ARIADNE_TEST_ASSERT(!definitely(uncertain));
-        ARIADNE_TEST_ASSERT(!definitely(!uncertain));
+        ARIADNE_TESTING_PROVE(!definitely(uncertain));
+        ARIADNE_TESTING_PROVE(!definitely(!uncertain));
 
         // A legitimate positive hot start with very small domain weights
         // produces a direction too large for any step above the cutoff.
@@ -854,18 +816,18 @@ class TestNonlinearInteriorPointSolver {
         ValidatedVectorMultivariateFunction gentle({0x1p-60_x*x[0]});
         weights=FloatDPApproximationVector({0.5_x,0.5_x,0x1p-120_x,0x1p-120_x},dp);
         point=FloatDPApproximationVector({0.0_x},dp); margin=-2;
-        ARIADNE_TEST_THROWS(solver.feasibility_step(
-            symmetric,gentle,far_target,weights,point,margin),NearBoundaryOfFeasibleDomainException);
-        ARIADNE_TEST_ASSERT(decide(point[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(decide(margin== -2.0_approx));
-        ARIADNE_TEST_ASSERT(decide(weights[0]==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(weights[2]==0x1p-120_x));
+        ARIADNE_TESTING_EXPECT_THROWS(NearBoundaryOfFeasibleDomainException, solver.feasibility_step(
+            symmetric,gentle,far_target,weights,point,margin));
+        ARIADNE_TESTING_PROVE(decide(point[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(margin== -2.0_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[0]==0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(weights[2]==0x1p-120_x));
 
         // Scaling the initial margin is necessary when subtracting one
         // would round straight back to the violated constraint boundary.
         ExactBoxType distant({{0x1p60_x,0x1p61_x}});
         solver.setup_feasibility(domain,identity,distant,weights,point,margin);
-        ARIADNE_TEST_ASSERT(decide(point[0]-distant[0].lower_bound()>margin));
+        ARIADNE_TESTING_PROVE(decide(point[0]-distant[0].lower_bound()>margin));
         solver.feasibility_step(domain,identity,distant,weights,point);
     }
 
@@ -877,28 +839,28 @@ class TestNonlinearInteriorPointSolver {
         ExactBoxType domain({{0.0_x,1.0_x}}), target({{0.75_x,1.0_x}}), wrong_target({{0.0_x,1.0_x},{0.0_x,1.0_x}});
         FloatDPApproximationVector weights,point;
         FloatDPApproximation margin(dp);
-        ARIADNE_TEST_FAIL(solver.setup_feasibility(domain,wrong_arguments,target,weights,point));
-        ARIADNE_TEST_FAIL(solver.setup_feasibility(domain,g,wrong_target,weights,point));
-        ARIADNE_TEST_FAIL(solver.setup_feasibility(ExactBoxType({{1.0_x,0.0_x}}),g,target,weights,point));
-        ARIADNE_TEST_FAIL(solver.setup_feasibility(ExactBoxType({{-inf,1.0_x}}),g,target,weights,point));
-        ARIADNE_TEST_FAIL(solver.setup_feasibility(ExactBoxType({{0.0_x,inf}}),g,target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.setup_feasibility(domain,wrong_arguments,target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.setup_feasibility(domain,g,wrong_target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.setup_feasibility(ExactBoxType({{1.0_x,0.0_x}}),g,target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.setup_feasibility(ExactBoxType({{-inf,1.0_x}}),g,target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.setup_feasibility(ExactBoxType({{0.0_x,inf}}),g,target,weights,point));
         solver.setup_feasibility(domain,g,target,weights,point,margin);
         FloatDPApproximationVector wrong_weights(3u,dp), wrong_point(2u,dp);
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,wrong_arguments,target,weights,point,margin));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,wrong_target,weights,point,margin));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,wrong_weights,point,margin));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,weights,wrong_point,margin));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,wrong_arguments,target,weights,point));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,wrong_target,weights,point));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,wrong_weights,point));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,weights,wrong_point));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(ExactBoxType({{-inf,1.0_x}}),g,target,weights,point,margin));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(ExactBoxType({{0.0_x,inf}}),g,target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,wrong_arguments,target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,wrong_target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,wrong_weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,weights,wrong_point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,wrong_arguments,target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,wrong_target,weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,wrong_weights,point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,weights,wrong_point));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(ExactBoxType({{-inf,1.0_x}}),g,target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(ExactBoxType({{0.0_x,inf}}),g,target,weights,point,margin));
         weights[0]=0;
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,weights,point,margin));
         solver.setup_feasibility(domain,g,target,weights,point,margin);
         margin=1;
-        ARIADNE_TEST_FAIL(solver.feasibility_step(domain,g,target,weights,point,margin));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(domain,g,target,weights,point,margin));
     }
 
 
@@ -915,10 +877,10 @@ class TestNonlinearInteriorPointSolver {
         ExactBoxType codomain({{0.25_x,0.75_x}});
 
         auto optimum=solver.minimise(objective,domain,g,codomain);
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
-        ARIADNE_TEST_ASSERT(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
-        ARIADNE_TEST_ASSERT(definitely(contains(domain,optimum)));
-        ARIADNE_TEST_ASSERT(definitely(contains(codomain,g(optimum))));
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_PROVE(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
+        ARIADNE_TESTING_PROVE(definitely(contains(domain,optimum)));
+        ARIADNE_TESTING_PROVE(definitely(contains(codomain,g(optimum))));
     }
 
     Void test_unconstrained_minimisation() {
@@ -930,10 +892,10 @@ class TestNonlinearInteriorPointSolver {
         auto optimum=solver.minimise(objective,domain,no_constraints,ExactBoxType{});
         // Vacuous constraints must not obstruct certification, and the
         // zero-row Jacobian must retain its one-column input dimension.
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
-        ARIADNE_TEST_ASSERT(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
-        ARIADNE_TEST_ASSERT(definitely(contains(domain,optimum)));
-        ARIADNE_TEST_ASSERT(definitely(objective(optimum)==FloatDPBounds(0.0_x,dp)));
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_PROVE(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
+        ARIADNE_TESTING_PROVE(definitely(contains(domain,optimum)));
+        ARIADNE_TESTING_PROVE(definitely(objective(optimum)==FloatDPBounds(0.0_x,dp)));
     }
 
     Void test_rejects_uncertified_minimum() {
@@ -948,10 +910,9 @@ class TestNonlinearInteriorPointSolver {
         // The problem is feasible (x=3/4 is a witness). The iteration
         // stays at its stationary midpoint x=0 while moving only slack
         // and multiplier variables; g(0)=0 never reaches the target.
-        ARIADNE_TEST_ASSERT(solver.is_feasible_point(domain,g,target,feasible));
-        ARIADNE_TEST_ASSERT(!solver.is_feasible_point(domain,g,target,stationary));
-        ARIADNE_TEST_THROWS(solver.minimise(objective,domain,g,target),
-                            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_PROVE(solver.is_feasible_point(domain,g,target,feasible));
+        ARIADNE_TESTING_PROVE(!solver.is_feasible_point(domain,g,target,stationary));
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, solver.minimise(objective,domain,g,target));
     }
 
     Void test_minimisation_step_exhausts_backtracking() {
@@ -968,13 +929,13 @@ class TestNonlinearInteriorPointSolver {
         // The well-conditioned equality step targets x=2^60, outside D.
         // No alpha above the numerical cutoff can keep the step in D.
         // Failure must leave the caller's primal and dual state intact.
-        ARIADNE_TEST_THROWS(solver.minimisation_step(
+        ARIADNE_TESTING_EXPECT_THROWS(NearBoundaryOfFeasibleDomainException, solver.minimisation_step(
             objective,domain,no_constraints,ExactBoxType{},equality,
-            point,slack,kappa,lambda,mu),NearBoundaryOfFeasibleDomainException);
-        ARIADNE_TEST_ASSERT(decide(point[0]==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(lambda[0]==0.0_approx));
-        ARIADNE_TEST_EQUAL(slack.size(),0u);
-        ARIADNE_TEST_EQUAL(kappa.size(),0u);
+            point,slack,kappa,lambda,mu));
+        ARIADNE_TESTING_PROVE(decide(point[0]==0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(lambda[0]==0.0_approx));
+        ARIADNE_TESTING_EXPECT_EQUAL(slack.size(),0u);
+        ARIADNE_TESTING_EXPECT_EQUAL(kappa.size(),0u);
     }
 
     Void test_nonlinear_equality_minimisation_backtracking() {
@@ -996,12 +957,12 @@ class TestNonlinearInteriorPointSolver {
 
         solver.minimisation_step(objective,domain,g,codomain,h,
                                   x,w,kappa,lambda,mu);
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(x)));
-        ARIADNE_TEST_ASSERT(contains(codomain,cast_exact(w)));
-        ARIADNE_TEST_ASSERT(decide(x[0]>0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(x[0]<1.0_approx));
-        ARIADNE_TEST_EQUAL(kappa.size(),1u);
-        ARIADNE_TEST_EQUAL(lambda.size(),1u);
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(x)));
+        ARIADNE_TESTING_PROVE(contains(codomain,cast_exact(w)));
+        ARIADNE_TESTING_PROVE(decide(x[0]>0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(x[0]<1.0_approx));
+        ARIADNE_TESTING_EXPECT_EQUAL(kappa.size(),1u);
+        ARIADNE_TESTING_EXPECT_EQUAL(lambda.size(),1u);
     }
 
     Void test_stationary_minimisation_step() {
@@ -1020,12 +981,12 @@ class TestNonlinearInteriorPointSolver {
 
         solver.minimisation_step(objective,D,g,C,h,x,w,kappa,lambda,mu);
 
-        ARIADNE_TEST_ASSERT(decide(x[0]==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(w[0]==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(kappa[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(decide(lambda[0]==0.0_approx));
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(x)));
-        ARIADNE_TEST_ASSERT(contains(C,cast_exact(w)));
+        ARIADNE_TESTING_PROVE(decide(x[0]==0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(w[0]==0.5_approx));
+        ARIADNE_TESTING_PROVE(decide(kappa[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(decide(lambda[0]==0.0_approx));
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(x)));
+        ARIADNE_TESTING_PROVE(contains(C,cast_exact(w)));
     }
 
     Void test_initial_feasibility_state() {
@@ -1037,20 +998,20 @@ class TestNonlinearInteriorPointSolver {
         FloatDPApproximationVector primal,dual;
 
         solver.setup_feasibility(domain,g,codomain,primal,dual);
-        ARIADNE_TEST_EQUAL(primal.size(),4u);
-        ARIADNE_TEST_EQUAL(dual.size(),1u);
-        ARIADNE_TEST_ASSERT(decide(dual[0]==0.5_approx));
+        ARIADNE_TESTING_EXPECT_EQUAL(primal.size(),4u);
+        ARIADNE_TESTING_EXPECT_EQUAL(dual.size(),1u);
+        ARIADNE_TESTING_PROVE(decide(dual[0]==0.5_approx));
         for(SizeType i=0u; i!=primal.size(); ++i) {
-            ARIADNE_TEST_ASSERT(decide(primal[i]==0.25_approx));
+            ARIADNE_TESTING_PROVE(decide(primal[i]==0.25_approx));
         }
 
         ValidatedVectorMultivariateFunction no_constraints(0u,1u);
         solver.setup_feasibility(domain,no_constraints,ExactBoxType{},primal,dual);
-        ARIADNE_TEST_EQUAL(primal.size(),2u);
-        ARIADNE_TEST_EQUAL(dual.size(),1u);
-        ARIADNE_TEST_ASSERT(decide(dual[0]==0.5_approx));
+        ARIADNE_TESTING_EXPECT_EQUAL(primal.size(),2u);
+        ARIADNE_TESTING_EXPECT_EQUAL(dual.size(),1u);
+        ARIADNE_TESTING_PROVE(decide(dual[0]==0.5_approx));
         for(SizeType i=0u; i!=primal.size(); ++i) {
-            ARIADNE_TEST_ASSERT(decide(primal[i]==0.5_approx));
+            ARIADNE_TESTING_PROVE(decide(primal[i]==0.5_approx));
         }
     }
 
@@ -1061,9 +1022,7 @@ class TestNonlinearInteriorPointSolver {
         ValidatedVectorMultivariateFunction constraints({x[0]});
         ExactBoxType domain({{0.0_x,1.0_x}});
         ExactBoxType codomain({{2.0_x,3.0_x}});
-        ARIADNE_TEST_THROWS(
-            solver.minimise(objective,domain,constraints,codomain),
-            InfeasibleProblemException);
+        ARIADNE_TESTING_EXPECT_THROWS(InfeasibleProblemException, solver.minimise(objective,domain,constraints,codomain));
     }
 
     Void test_relaxation_parameter() {
@@ -1084,92 +1043,70 @@ class TestNonlinearInteriorPointSolver {
 
         // The average over an empty constraint family is defined as
         // zero; it must not evaluate a 0/0 expression.
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,no_constraints,empty_codomain,point,no_multipliers)==0.0_approx));
 
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,equality,point,positive_multiplier)==0.0_approx));
-        ARIADNE_TEST_ASSERT(is_inf(upper_bounded[0].lower_bound()));
-        ARIADNE_TEST_ASSERT(is_inf(lower_bounded[0].upper_bound()));
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(is_inf(upper_bounded[0].lower_bound()));
+        ARIADNE_TESTING_PROVE(is_inf(lower_bounded[0].upper_bound()));
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,upper_bounded,point,positive_multiplier)==-0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,upper_bounded,point,negative_multiplier)==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,lower_bounded,point,positive_multiplier)==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,bounded,point,negative_multiplier)==0.5_approx));
-        ARIADNE_TEST_ASSERT(decide(solver.compute_mu(
+        ARIADNE_TESTING_PROVE(decide(solver.compute_mu(
             domain,constraints,bounded,point,positive_multiplier)==0.5_approx));
     }
 };
 
-class TestNonlinearInfeasibleInteriorPointSolver
+class TestNonlinearInfeasibleInteriorPointSolver : public Ariadne::Testing::ContextFixture
 {
+  public:
+    using ContextFixture::ContextFixture;
   private:
     NonlinearInfeasibleInteriorPointSolver optimiser;
     DoublePrecision pr;
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_constrained_optimisation());
-        ARIADNE_TEST_CALL(test_equality_constrained_optimisation());
-        ARIADNE_TEST_CALL(test_certified_nonlinear_equality_feasibility());
-        ARIADNE_TEST_CALL(test_logging_solver_diagnostics());
-        ARIADNE_TEST_CALL(test_candidate_linear());
-        ARIADNE_TEST_CALL(test_candidate_nonlinear());
-        ARIADNE_TEST_CALL(test_candidate_equality());
-        ARIADNE_TEST_CALL(test_candidate_infeasible());
-        ARIADNE_TEST_CALL(test_candidate_seven_dimensional());
-        ARIADNE_TEST_CALL(test_candidate_narrow_codomain());
-        ARIADNE_TEST_CALL(test_candidate_anisotropic_domain());
-        ARIADNE_TEST_CALL(test_candidate_multiple_constraints());
-        ARIADNE_TEST_CALL(test_candidate_nonlinear_seven_dimensional());
-        ARIADNE_TEST_CALL(test_candidate_boundary());
-        ARIADNE_TEST_CALL(test_candidate_rank_deficient());
-        ARIADNE_TEST_CALL(test_candidate_overdetermined());
-        ARIADNE_TEST_CALL(test_candidate_deterministic());
-        ARIADNE_TEST_CALL(test_numeric_step_failure());
-        ARIADNE_TEST_CALL(test_uncertified_minimisation());
-        ARIADNE_TEST_CALL(test_candidate_redundant_equalities());
-        ARIADNE_TEST_CALL(test_candidate_iteration_budget());
-        ARIADNE_TEST_CALL(test_minimisation_iteration_limit());
-    }
 
     Void test_constrained_optimisation() {
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(3);
         EffectiveScalarMultivariateFunction x0s = sqr(x[0]);
         EffectiveScalarMultivariateFunction f = x0s*(12+x0s*(Decimal(6.3)+x0s))+6*x[1]*(x[1]-x[0])+x[2];
-        ARIADNE_TEST_PRINT(f);
+        ARIADNE_TESTING_NOTE("f = " << (f));
         //EffectiveVectorMultivariateFunction g( (x[0]-1, x[0]+x[1]*x[1], x[1]*x[1]) );
         ExactBoxType D = ExactBoxType{{-1.0_x,2.0_x},{-3.0_x,5.0_x},{-3.0_x,5.0_x}};
-        ARIADNE_TEST_PRINT(D);
+        ARIADNE_TESTING_NOTE("D = " << (D));
         EffectiveVectorMultivariateFunction g = {2*x[1]+x[0], x[0]+x[1]*x[1]-Real(0.875_x)};
-        ARIADNE_TEST_PRINT(g);
+        ARIADNE_TESTING_NOTE("g = " << (g));
         ExactBoxType C = ExactBoxType{{0.0_x,inf},{0.0_x,inf}};
-        ARIADNE_TEST_PRINT(C);
+        ARIADNE_TESTING_NOTE("C = " << (C));
 
         FloatDPBoundsVector x_optimal=optimiser.minimise(f,D,g,C);
-        ARIADNE_TEST_BINARY_PREDICATE(element,x_optimal,D);
-        ARIADNE_TEST_BINARY_PREDICATE(element,g(x_optimal),C);
+        ARIADNE_TESTING_EXPECT_BINARY_PREDICATE(element,x_optimal,D);
+        ARIADNE_TESTING_EXPECT_BINARY_PREDICATE(element,g(x_optimal),C);
         //ExactDouble required_accuracy=1e-6_pr;
-        //ARIADNE_TEST_LESS(norm(x_optimal),required_accuracy);
+        //ARIADNE_TESTING_EXPECT_LESS(norm(x_optimal),required_accuracy);
     }
 
     Void test_equality_constrained_optimisation() {
         List<EffectiveScalarMultivariateFunction> x=EffectiveScalarMultivariateFunction::coordinates(2);
         EffectiveScalarMultivariateFunction f=(sqr(x[0])+sqr(x[1]));
-        ARIADNE_TEST_PRINT(f);
+        ARIADNE_TESTING_NOTE("f = " << (f));
         Real a(1.5_x); Real b(0.25_x);
         EffectiveVectorMultivariateFunction g={a+x[0]+2*x[1]+b*x[0]*x[1]};
-        ARIADNE_TEST_PRINT(g);
+        ARIADNE_TESTING_NOTE("g = " << (g));
         ExactBoxType C={{0.0_x,0.0_x}};
         ExactBoxType D=ExactBoxType{{-1.0_x,2.0_x},{-3.0_x,5.0_x}};
-        ARIADNE_TEST_PRINT(Ariadne::make_tuple(f,D,g,C));
+        ARIADNE_TESTING_NOTE("Ariadne::make_tuple(f,D,g,C) = " << (Ariadne::make_tuple(f,D,g,C)));
 
         ExactDouble required_accuracy=1e-7_pr;
         FloatDPBoundsVector x_optimal=optimiser.minimise(f,D,g,C);
-        ARIADNE_TEST_BINARY_PREDICATE(element,x_optimal,D);
-        ARIADNE_TEST_LESS(norm(g(x_optimal)),required_accuracy);
+        ARIADNE_TESTING_EXPECT_BINARY_PREDICATE(element,x_optimal,D);
+        ARIADNE_TESTING_EXPECT_LESS(norm(g(x_optimal)),required_accuracy);
     }
 
     Void test_certified_nonlinear_equality_feasibility() {
@@ -1179,7 +1116,7 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ValidatedVectorMultivariateFunction h({2*x[0]-x[1]+x[0]*x[1]/8});
         ExactBoxType D({{0.0_x,2.0_x},{0.0_x,2.0_x}});
         ExactBoxType C({{0.0_x,0.0_x}});
-        ARIADNE_TEST_ASSERT(definitely(optimiser.feasible(D,h,C)));
+        ARIADNE_TESTING_PROVE(definitely(optimiser.feasible(D,h,C)));
     }
 
     Void test_logging_solver_diagnostics() {
@@ -1232,8 +1169,7 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // value and derivatives overflow at the initial midpoint.
         // Reject the numerical direction through the solver exception,
         // rather than a debug assertion or a spurious certified optimum.
-        ARIADNE_TEST_THROWS(optimiser.minimise(steep,domain,identity,unit),
-            DegenerateNonlinearFeasibilityProblemException);
+        ARIADNE_TESTING_EXPECT_THROWS(DegenerateNonlinearFeasibilityProblemException, optimiser.minimise(steep,domain,identity,unit));
 
         // exp(4096*x) in [1,2] is feasible near x=0. The heuristic
         // cannot form its initial Newton step; it must retain a safe
@@ -1241,9 +1177,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ValidatedVectorMultivariateFunction constraint({steep});
         ExactBoxType target({{1.0_x,2.0_x}});
         auto candidate=optimiser.feasible_candidate(domain,constraint,target);
-        ARIADNE_TEST_ASSERT(is_indeterminate(candidate.first));
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate.second)));
-        ARIADNE_TEST_EQUAL(candidate.second[0].raw(),FloatDP(0.5_x,dp));
+        ARIADNE_TESTING_PROVE(is_indeterminate(candidate.first));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(candidate.second)));
+        ARIADNE_TESTING_EXPECT_EQUAL(candidate.second[0].raw(),FloatDP(0.5_x,dp));
     }
 
     Void test_uncertified_minimisation() {
@@ -1254,17 +1190,15 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // The constraints are consistent, but the generic equality
         // certificate cannot invert an overdetermined correction.
         // A large linear objective reaches the barrier stopping limit.
-        ARIADNE_TEST_THROWS(optimiser.minimise(
-            1000000*x[0],domain,redundant,redundant_zero),
-            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, optimiser.minimise(
+            1000000*x[0],domain,redundant,redundant_zero));
 
         // The multiple root x=0 is feasible, but its singular interval
         // Jacobian cannot certify the final quartic minimisation iterate.
         ValidatedVectorMultivariateFunction multiple({pow(x[0],3)});
         ExactBoxType zero_box(1u,ExactIntervalType(0,0));
-        ARIADNE_TEST_THROWS(optimiser.minimise(
-            pow(x[0],4),domain,multiple,zero_box),
-            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, optimiser.minimise(
+            pow(x[0],4),domain,multiple,zero_box));
     }
 
     Void test_candidate_redundant_equalities() {
@@ -1277,9 +1211,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // to the small-barrier limit improves the candidate without
         // inventing a certificate for the redundant equality system.
         auto candidate=optimiser.feasible_candidate(domain,redundant,zero_box);
-        ARIADNE_TEST_ASSERT(is_indeterminate(candidate.first));
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate.second)));
-        ARIADNE_TEST_ASSERT(decide(norm(candidate.second)<1e-8));
+        ARIADNE_TESTING_PROVE(is_indeterminate(candidate.first));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(candidate.second)));
+        ARIADNE_TESTING_PROVE(decide(norm(candidate.second)<1e-8));
     }
 
     Void test_candidate_iteration_budget() {
@@ -1292,13 +1226,13 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // in one variable prevent the generic Newton correction from
         // certifying the candidate. One completed numerical iteration
         // must exhaust the requested budget without claiming a proof.
-        ARIADNE_TEST_ASSERT(optimiser.is_feasible_point(
+        ARIADNE_TESTING_PROVE(optimiser.is_feasible_point(
             domain,redundant,zero_box,FloatDPVector({0.0_x},dp)));
 
         auto candidate=optimiser.feasible_candidate(
             domain,redundant,zero_box,1u);
-        ARIADNE_TEST_ASSERT(is_indeterminate(candidate.first));
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate.second)));
+        ARIADNE_TESTING_PROVE(is_indeterminate(candidate.first));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(candidate.second)));
     }
 
     Void test_minimisation_iteration_limit() {
@@ -1309,9 +1243,8 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // The equality forces x=0, while the objective favours x=1.
         // The twenty-four Newton steps exhaust the budget before a
         // certificate is obtained for the multiple equality root.
-        ARIADNE_TEST_THROWS(optimiser.minimise(
-            pow(x[0]-1,4),domain,equality,zero_box),
-            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, optimiser.minimise(
+            pow(x[0]-1,4),domain,equality,zero_box));
     }
 
     Void test_stationary_minimisation() {
@@ -1325,10 +1258,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType codomain({{0.25_x,0.75_x}});
 
         auto optimum=optimiser.minimise(objective,domain,g,codomain);
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
-        ARIADNE_TEST_ASSERT(definitely(contains(domain,optimum)));
-        ARIADNE_TEST_ASSERT(definitely(contains(codomain,g(optimum))));
-        ARIADNE_TEST_ASSERT(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_PROVE(definitely(contains(domain,optimum)));
+        ARIADNE_TESTING_PROVE(definitely(contains(codomain,g(optimum))));
+        ARIADNE_TESTING_PROVE(definitely(optimum[0]==FloatDPBounds(0.5_x,dp)));
 
         // Each malformed input violates exactly one of the public
         // dimension preconditions and must be rejected before setup
@@ -1337,11 +1270,11 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ValidatedVectorMultivariateFunction wrong_arguments(0u,2u);
         ExactBoxType wrong_codomain({{0.25_x,0.75_x},{0.25_x,0.75_x}});
 
-        ARIADNE_TEST_FAIL(optimiser.minimise(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser.minimise(
             objective,wrong_domain,g,codomain));
-        ARIADNE_TEST_FAIL(optimiser.minimise(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser.minimise(
             objective,domain,wrong_arguments,codomain));
-        ARIADNE_TEST_FAIL(optimiser.minimise(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser.minimise(
             objective,domain,g,wrong_codomain));
     }
 
@@ -1365,9 +1298,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.19_pr,0.21_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(definitely(candidate_result.first));
-        ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(definitely(candidate_result.first));
+        ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
             D,g,C,cast_exact(candidate_result.second)));
 
         // Independent public contracts of feasible_candidate():
@@ -1376,8 +1309,8 @@ class TestNonlinearInfeasibleInteriorPointSolver
         // to avoid introducing additional numerical trajectories.
         ExactBoxType wrong_domain({{0.0_x,1.0_x}});
         ExactBoxType wrong_codomain({{0.19_pr,0.21_pr},{0.19_pr,0.21_pr}});
-        ARIADNE_TEST_FAIL(optimiser.feasible_candidate(wrong_domain,g,C));
-        ARIADNE_TEST_FAIL(optimiser.feasible_candidate(D,g,wrong_codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser.feasible_candidate(wrong_domain,g,C));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(optimiser.feasible_candidate(D,g,wrong_codomain));
     }
 
     Void test_candidate_nonlinear() {
@@ -1387,9 +1320,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.49_pr,0.51_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1401,9 +1334,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.0_x,0.0_x}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(definitely(candidate_result.first));
-        ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(definitely(candidate_result.first));
+        ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
             D,g,C,cast_exact(candidate_result.second)));
     }
 
@@ -1418,9 +1351,9 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType contradictory({{0.0_x,0.0_x},{1.0_x,1.0_x}});
 
         auto candidate_result=optimiser.feasible_candidate(domain,g,contradictory);
-        ARIADNE_TEST_ASSERT(!definitely(candidate_result.first));
-        ARIADNE_TEST_EQUAL(candidate_result.second.size(),domain.dimension());
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(!definitely(candidate_result.first));
+        ARIADNE_TESTING_EXPECT_EQUAL(candidate_result.second.size(),domain.dimension());
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(candidate_result.second)));
     }
 
     Void test_candidate_infeasible() {
@@ -1430,8 +1363,8 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{3.0_x,4.0_x}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(definitely(not candidate_result.first));
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(definitely(not candidate_result.first));
     }
 
     Void test_candidate_seven_dimensional() {
@@ -1449,10 +1382,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{1.175_pr,1.425_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1463,10 +1396,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.199999_pr,0.200001_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1478,11 +1411,11 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.49_pr,0.51_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
-        ARIADNE_TEST_ASSERT(not definitely(not candidate_result.first));
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(not definitely(not candidate_result.first));
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1497,10 +1430,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{1.19_pr,1.21_pr},{-0.01_pr,0.01_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1518,10 +1451,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{1.29_pr,1.31_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1533,10 +1466,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.0_x,0.01_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1551,10 +1484,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         ExactBoxType C({{0.49_pr,0.51_pr},{0.98_pr,1.02_pr}});
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1574,10 +1507,10 @@ class TestNonlinearInfeasibleInteriorPointSolver
         });
 
         auto candidate_result=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(contains(D,cast_exact(candidate_result.second)));
-        ARIADNE_TEST_ASSERT(candidate_result.second.size()==D.dimension());
+        ARIADNE_TESTING_PROVE(contains(D,cast_exact(candidate_result.second)));
+        ARIADNE_TESTING_PROVE(candidate_result.second.size()==D.dimension());
         if(definitely(candidate_result.first)) {
-            ARIADNE_TEST_ASSERT(optimiser.validate_feasibility(
+            ARIADNE_TESTING_PROVE(optimiser.validate_feasibility(
                 D,g,C,cast_exact(candidate_result.second)));
         }
     }
@@ -1593,47 +1526,20 @@ class TestNonlinearInfeasibleInteriorPointSolver
 
         auto first=optimiser.feasible_candidate(D,g,C);
         auto second=optimiser.feasible_candidate(D,g,C);
-        ARIADNE_TEST_ASSERT(first.first==second.first);
-        ARIADNE_TEST_EQUAL(first.second.size(),second.second.size());
+        ARIADNE_TESTING_PROVE(first.first==second.first);
+        ARIADNE_TESTING_EXPECT_EQUAL(first.second.size(),second.second.size());
         for(SizeType i=0u; i!=first.second.size(); ++i) {
-            ARIADNE_TEST_EQUAL(first.second[i].raw(),second.second[i].raw());
+            ARIADNE_TESTING_EXPECT_EQUAL(first.second[i].raw(),second.second[i].raw());
         }
     }
 
 };
 
-class TestNonlinearPenaltyFunctionSolver
+class TestNonlinearPenaltyFunctionSolver : public Ariadne::Testing::ContextFixture
 {
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_logging_diagnostics());
-        ARIADNE_TEST_CALL(test_point_feasibility_with_inequalities());
-        ARIADNE_TEST_CALL(test_point_feasibility_rounding_overlap());
-        ARIADNE_TEST_CALL(test_point_feasibility_cancellation_uncertainty());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_unconstrained());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_slow_convergence());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_lower_domain_projection());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_active_constraint());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_detects_infeasibility());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_input_contracts());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_upper_codomain());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_boundary_requires_certificate());
-        ARIADNE_TEST_CALL(test_penalty_minimisation_lower_boundary_requires_certificate());
-        ARIADNE_TEST_CALL(test_point_feasibility_input_contracts());
-        ARIADNE_TEST_CALL(test_point_feasibility_with_equalities());
-        ARIADNE_TEST_CALL(test_point_feasibility_multiplier_infeasibility_certificate());
-        ARIADNE_TEST_CALL(test_approximate_penalty_step());
-        ARIADNE_TEST_CALL(test_validated_penalty_feasibility_contraction());
-        ARIADNE_TEST_CALL(test_validated_penalty_step_input_contracts());
-        ARIADNE_TEST_CALL(test_validated_penalty_negative_derivative());
-        ARIADNE_TEST_CALL(test_validated_penalty_derivative_containing_zero());
-        ARIADNE_TEST_CALL(test_validated_penalty_multidimensional_contraction());
-        ARIADNE_TEST_CALL(test_validated_penalty_inconsistent_enclosures());
-        ARIADNE_TEST_CALL(test_primal_dual_penalty_equality_step());
-        ARIADNE_TEST_CALL(test_primal_dual_penalty_step_input_contracts());
-        ARIADNE_TEST_CALL(test_primal_dual_penalty_backtracking());
-        ARIADNE_TEST_CALL(test_approximate_penalty_backtracking());
-    }
+    using ContextFixture::ContextFixture;
+  public:
 
     Void test_logging_diagnostics() {
         // Recheck already-established semantic contracts with logging
@@ -1680,13 +1586,13 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPVector multipliers({0.0_x},dp);
         FloatDPVector wrong_size({0.0_x,0.0_x},dp);
 
-        ARIADNE_TEST_FAIL(solver.check_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.check_feasibility(
             two_dimensional_domain,g,codomain,point,multipliers));
-        ARIADNE_TEST_FAIL(solver.check_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.check_feasibility(
             domain,g,two_dimensional_codomain,point,multipliers));
-        ARIADNE_TEST_FAIL(solver.check_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.check_feasibility(
             domain,g,codomain,wrong_size,multipliers));
-        ARIADNE_TEST_FAIL(solver.check_feasibility(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.check_feasibility(
             domain,g,codomain,point,wrong_size));
     }
 
@@ -1703,8 +1609,8 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType codomain(0u);
 
         FloatDPBoundsVector optimum=solver.minimise(f,domain,g,codomain);
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
-        ARIADNE_TEST_ASSERT(same(optimum[0],FloatDPBounds(-1.0_x,dp)));
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_PROVE(same(optimum[0],FloatDPBounds(-1.0_x,dp)));
     }
 
     Void test_penalty_minimisation_unconstrained() {
@@ -1718,9 +1624,9 @@ class TestNonlinearPenaltyFunctionSolver
         // an empty initializer list (which has no precision information).
         ExactBoxType codomain(0u);
         FloatDPBoundsVector optimum=solver.minimise(f,domain,g,codomain);
-        ARIADNE_TEST_EQUAL(optimum.size(),1u);
+        ARIADNE_TESTING_EXPECT_EQUAL(optimum.size(),1u);
         auto midpoint_optimum=midpoint(optimum);
-        ARIADNE_TEST_ASSERT(decide(abs(midpoint_optimum[0]-
+        ARIADNE_TESTING_PROVE(decide(abs(midpoint_optimum[0]-
             FloatDPApproximation(0.25_x,dp))<FloatDPApproximation(0.015625_x,dp)));
     }
 
@@ -1738,12 +1644,12 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType codomain(0u);
 
         FloatDPBoundsVector candidate=solver.minimise(f,domain,g,codomain);
-        ARIADNE_TEST_EQUAL(candidate.size(),1u);
-        ARIADNE_TEST_ASSERT(definitely(contains(domain,candidate)));
-        ARIADNE_TEST_ASSERT(definitely(abs(candidate[0]-FloatDPBounds(0.25_x,dp))<
+        ARIADNE_TESTING_EXPECT_EQUAL(candidate.size(),1u);
+        ARIADNE_TESTING_PROVE(definitely(contains(domain,candidate)));
+        ARIADNE_TESTING_PROVE(definitely(abs(candidate[0]-FloatDPBounds(0.25_x,dp))<
             FloatDPBounds(0.0078125_x,dp)));
         FloatDPBoundsVector initial({0.0_x},dp);
-        ARIADNE_TEST_ASSERT(definitely(f(candidate)<f(initial)));
+        ARIADNE_TESTING_PROVE(definitely(f(candidate)<f(initial)));
     }
 
     Void test_penalty_minimisation_active_constraint() {
@@ -1756,9 +1662,9 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType codomain({{0.5_x,1.0_x}});
         FloatDPBoundsVector optimum=solver.minimise(f,domain,g,codomain);
-        ARIADNE_TEST_ASSERT(definitely(contains(codomain,g(optimum))));
+        ARIADNE_TESTING_PROVE(definitely(contains(codomain,g(optimum))));
         auto midpoint_optimum=midpoint(optimum);
-        ARIADNE_TEST_ASSERT(decide(abs(midpoint_optimum[0]-
+        ARIADNE_TESTING_PROVE(decide(abs(midpoint_optimum[0]-
             FloatDPApproximation(0.75_x,dp))<FloatDPApproximation(0.015625_x,dp)));
     }
 
@@ -1778,11 +1684,11 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType unbounded_below({{-inf,1.0_x}});
         ExactBoxType unbounded_above({{-1.0_x,+inf}});
 
-        ARIADNE_TEST_FAIL(solver.minimise(wrong_f,domain,g,codomain));
-        ARIADNE_TEST_FAIL(solver.minimise(f,domain,wrong_g,codomain));
-        ARIADNE_TEST_FAIL(solver.minimise(f,domain,g,wrong_codomain));
-        ARIADNE_TEST_FAIL(solver.minimise(f,unbounded_below,g,codomain));
-        ARIADNE_TEST_FAIL(solver.minimise(f,unbounded_above,g,codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(wrong_f,domain,g,codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(f,domain,wrong_g,codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(f,domain,g,wrong_codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(f,unbounded_below,g,codomain));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(f,unbounded_above,g,codomain));
     }
 
     Void test_penalty_minimisation_upper_codomain() {
@@ -1796,9 +1702,9 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType codomain({{-1.0_x,-0.5_x}});
         FloatDPBoundsVector optimum=solver.minimise(f,domain,g,codomain);
-        ARIADNE_TEST_ASSERT(definitely(contains(codomain,g(optimum))));
+        ARIADNE_TESTING_PROVE(definitely(contains(codomain,g(optimum))));
         auto midpoint_optimum=midpoint(optimum);
-        ARIADNE_TEST_ASSERT(decide(abs(midpoint_optimum[0]+
+        ARIADNE_TESTING_PROVE(decide(abs(midpoint_optimum[0]+
             FloatDPApproximation(0.75_x,dp))<FloatDPApproximation(0.015625_x,dp)));
     }
 
@@ -1814,9 +1720,7 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType codomain({{-1.0_x,0.0_x}});
 
-        ARIADNE_TEST_THROWS(
-            solver.minimise(f,domain,g,codomain),
-            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, solver.minimise(f,domain,g,codomain));
     }
 
     Void test_penalty_minimisation_lower_boundary_requires_certificate() {
@@ -1832,9 +1736,7 @@ class TestNonlinearPenaltyFunctionSolver
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType codomain({{0.5_x,1.0_x}});
 
-        ARIADNE_TEST_THROWS(
-            solver.minimise(f,domain,g,codomain),
-            IndeterminateFeasibilityException);
+        ARIADNE_TESTING_EXPECT_THROWS(IndeterminateFeasibilityException, solver.minimise(f,domain,g,codomain));
     }
 
     Void test_penalty_minimisation_detects_infeasibility() {
@@ -1844,7 +1746,7 @@ class TestNonlinearPenaltyFunctionSolver
         ValidatedVectorMultivariateFunction g({coordinate[0]});
         ExactBoxType domain({{-1.0_x,1.0_x}});
         ExactBoxType impossible({{2.0_x,3.0_x}});
-        ARIADNE_TEST_FAIL(solver.minimise(f,domain,g,impossible));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.minimise(f,domain,g,impossible));
     }
 
     Void test_point_feasibility_with_inequalities() {
@@ -1858,9 +1760,9 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPVector outside({0.75_x},dp);
         FloatDPVector multipliers({0.0_x},dp);
 
-        ARIADNE_TEST_ASSERT(definitely(solver.check_feasibility(
+        ARIADNE_TESTING_PROVE(definitely(solver.check_feasibility(
             domain,g,codomain,inside,multipliers)));
-        ARIADNE_TEST_ASSERT(definitely(not cloned->check_feasibility(
+        ARIADNE_TESTING_PROVE(definitely(not cloned->check_feasibility(
             domain,g,codomain,outside,multipliers)));
     }
 
@@ -1879,8 +1781,8 @@ class TestNonlinearPenaltyFunctionSolver
 
         const auto status=solver.check_feasibility(
             domain,g,codomain,point,multiplier);
-        ARIADNE_TEST_ASSERT(not definitely(status));
-        ARIADNE_TEST_ASSERT(not definitely(not status));
+        ARIADNE_TESTING_PROVE(not definitely(status));
+        ARIADNE_TESTING_PROVE(not definitely(not status));
     }
 
     Void test_point_feasibility_cancellation_uncertainty() {
@@ -1902,8 +1804,8 @@ class TestNonlinearPenaltyFunctionSolver
 
         const auto status=solver.check_feasibility(
             domain,g,equality,point,multiplier);
-        ARIADNE_TEST_ASSERT(not definitely(status));
-        ARIADNE_TEST_ASSERT(not definitely(not status));
+        ARIADNE_TESTING_PROVE(not definitely(status));
+        ARIADNE_TESTING_PROVE(not definitely(not status));
     }
 
     Void test_point_feasibility_multiplier_infeasibility_certificate() {
@@ -1921,7 +1823,7 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPVector certificate({1.0_x},dp);
         FloatDPVector no_certificate({0.0_x},dp);
 
-        ARIADNE_TEST_ASSERT(definitely(not solver.check_feasibility(
+        ARIADNE_TESTING_PROVE(definitely(not solver.check_feasibility(
             domain,g,equality,center,certificate)));
 
         // The same infeasible problem has no separating information
@@ -1929,8 +1831,8 @@ class TestNonlinearPenaltyFunctionSolver
         // evidence of feasibility.
         auto unproved=solver.check_feasibility(
             domain,g,equality,center,no_certificate);
-        ARIADNE_TEST_ASSERT(not definitely(unproved));
-        ARIADNE_TEST_ASSERT(not definitely(not unproved));
+        ARIADNE_TESTING_PROVE(not definitely(unproved));
+        ARIADNE_TESTING_PROVE(not definitely(not unproved));
     }
 
     Void test_point_feasibility_with_equalities() {
@@ -1944,14 +1846,14 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPVector multipliers({0.0_x},dp);
 
         // The interval Newton inclusion certifies the interior root.
-        ARIADNE_TEST_ASSERT(definitely(solver.check_feasibility(
+        ARIADNE_TESTING_PROVE(definitely(solver.check_feasibility(
             interior_domain,g,equality,root,multipliers)));
 
         // A boundary root is feasible, but the symmetric inclusion box
         // crosses the domain boundary: it must not be declared infeasible.
         auto boundary_status=solver.check_feasibility(
             boundary_domain,g,equality,root,multipliers);
-        ARIADNE_TEST_ASSERT(not definitely(not boundary_status));
+        ARIADNE_TESTING_PROVE(not definitely(not boundary_status));
     }
 
 
@@ -1973,15 +1875,15 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPApproximationVector slack({0.0_x},dp);
         FloatDPApproximationVector wrong_size({0.0_x,0.0_x},dp);
 
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             wrong_domain,g,codomain,point,multipliers,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,wrong_codomain,point,multipliers,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,codomain,wrong_size,multipliers,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,codomain,point,wrong_size,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,codomain,point,multipliers,wrong_size));
     }
 
@@ -1999,10 +1901,10 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPApproximationVector slack({0.0_x},dp);
 
         solver.feasibility_step(domain,g,equality,point,multipliers,slack);
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(point)));
-        ARIADNE_TEST_ASSERT(contains(equality,cast_exact(slack)));
-        ARIADNE_TEST_ASSERT(decide(slack[0]==FloatDPApproximation(0.0_x,dp)));
-        ARIADNE_TEST_ASSERT(decide(abs(point[0])<FloatDPApproximation(0.05_a,dp)));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(point)));
+        ARIADNE_TESTING_PROVE(contains(equality,cast_exact(slack)));
+        ARIADNE_TESTING_PROVE(decide(slack[0]==FloatDPApproximation(0.0_x,dp)));
+        ARIADNE_TESTING_PROVE(decide(abs(point[0])<FloatDPApproximation(0.05_a,dp)));
     }
 
     Void test_primal_dual_penalty_backtracking() {
@@ -2019,13 +1921,13 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPApproximationVector slack({FloatDPApproximation(0.2_a,dp)});
 
         solver.feasibility_step(domain,g,codomain,point,multipliers,slack);
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(point)));
-        ARIADNE_TEST_ASSERT(contains(codomain,cast_exact(slack)));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(point)));
+        ARIADNE_TESTING_PROVE(contains(codomain,cast_exact(slack)));
         // Expected reduced step is approximately (-0.843,-0.824).
-        ARIADNE_TEST_ASSERT(decide(point[0]<FloatDPApproximation(-0.7_a,dp)));
-        ARIADNE_TEST_ASSERT(decide(point[0]>FloatDPApproximation(-0.95_a,dp)));
-        ARIADNE_TEST_ASSERT(decide(slack[0]<FloatDPApproximation(-0.7_a,dp)));
-        ARIADNE_TEST_ASSERT(decide(slack[0]>FloatDPApproximation(-0.95_a,dp)));
+        ARIADNE_TESTING_PROVE(decide(point[0]<FloatDPApproximation(-0.7_a,dp)));
+        ARIADNE_TESTING_PROVE(decide(point[0]>FloatDPApproximation(-0.95_a,dp)));
+        ARIADNE_TESTING_PROVE(decide(slack[0]<FloatDPApproximation(-0.7_a,dp)));
+        ARIADNE_TESTING_PROVE(decide(slack[0]>FloatDPApproximation(-0.95_a,dp)));
     }
 
     Void test_approximate_penalty_backtracking() {
@@ -2042,11 +1944,11 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPApproximation weight(1.0_x,dp);
 
         solver.feasibility_step(domain,g,codomain,point,slack,weight);
-        ARIADNE_TEST_ASSERT(decide(weight==FloatDPApproximation(0.5_x,dp)));
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(point)));
-        ARIADNE_TEST_ASSERT(contains(codomain,cast_exact(slack)));
-        ARIADNE_TEST_ASSERT(decide(point[0]<FloatDPApproximation(0.25_x,dp)));
-        ARIADNE_TEST_ASSERT(decide(slack[0]<FloatDPApproximation(0.0_x,dp)));
+        ARIADNE_TESTING_PROVE(decide(weight==FloatDPApproximation(0.5_x,dp)));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(point)));
+        ARIADNE_TESTING_PROVE(contains(codomain,cast_exact(slack)));
+        ARIADNE_TESTING_PROVE(decide(point[0]<FloatDPApproximation(0.25_x,dp)));
+        ARIADNE_TESTING_PROVE(decide(slack[0]<FloatDPApproximation(0.0_x,dp)));
     }
 
     Void test_validated_penalty_step_input_contracts() {
@@ -2064,13 +1966,13 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPBoundsVector wrong_point(2u,FloatDPBounds(-1,+1,dp));
         FloatDPBoundsVector wrong_slack(2u,FloatDPBounds(-1,+1,dp));
 
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             wrong_domain,g,codomain,point,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,wrong_codomain,point,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,codomain,wrong_point,slack));
-        ARIADNE_TEST_FAIL(solver.feasibility_step(
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasibility_step(
             domain,g,codomain,point,wrong_slack));
     }
 
@@ -2086,8 +1988,8 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPBoundsVector slack(1u,FloatDPBounds(-1,+1,dp));
 
         solver.feasibility_step(domain,g,equality,point,slack);
-        ARIADNE_TEST_ASSERT(definitely(point[0]==FloatDPBounds(-0.25_x,dp)));
-        ARIADNE_TEST_ASSERT(definitely(slack[0]==FloatDPBounds(0.25_x,dp)));
+        ARIADNE_TESTING_PROVE(definitely(point[0]==FloatDPBounds(-0.25_x,dp)));
+        ARIADNE_TESTING_PROVE(definitely(slack[0]==FloatDPBounds(0.25_x,dp)));
     }
 
     Void test_validated_penalty_derivative_containing_zero() {
@@ -2106,8 +2008,8 @@ class TestNonlinearPenaltyFunctionSolver
         // Equality of overlapping validated intervals is indeterminate.
         // Compare their representations to verify that the enclosure
         // was preserved exactly when the derivative contains zero.
-        ARIADNE_TEST_ASSERT(same(point[0],FloatDPBounds(-1,+1,dp)));
-        ARIADNE_TEST_ASSERT(definitely(slack[0]==FloatDPBounds(0,dp)));
+        ARIADNE_TESTING_PROVE(same(point[0],FloatDPBounds(-1,+1,dp)));
+        ARIADNE_TESTING_PROVE(definitely(slack[0]==FloatDPBounds(0,dp)));
     }
 
     Void test_validated_penalty_multidimensional_contraction() {
@@ -2123,8 +2025,8 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPBoundsVector slack(1u,FloatDPBounds(-1,+1,dp));
 
         solver.feasibility_step(domain,g,equality,point,slack);
-        ARIADNE_TEST_ASSERT(definitely(slack[0]==FloatDPBounds(0.0_x,dp)));
-        ARIADNE_TEST_EQUAL(point.size(),2u);
+        ARIADNE_TESTING_PROVE(definitely(slack[0]==FloatDPBounds(0.0_x,dp)));
+        ARIADNE_TESTING_EXPECT_EQUAL(point.size(),2u);
     }
 
     Void test_validated_penalty_feasibility_contraction() {
@@ -2139,8 +2041,8 @@ class TestNonlinearPenaltyFunctionSolver
         solver.feasibility_step(domain,g,equality,point,slack);
         // The mean-value contractor for g(x)=x narrows both unknowns
         // to the exactly feasible singleton zero.
-        ARIADNE_TEST_ASSERT(definitely(point[0]==FloatDPBounds(0,dp)));
-        ARIADNE_TEST_ASSERT(definitely(slack[0]==FloatDPBounds(0,dp)));
+        ARIADNE_TESTING_PROVE(definitely(point[0]==FloatDPBounds(0,dp)));
+        ARIADNE_TESTING_PROVE(definitely(slack[0]==FloatDPBounds(0,dp)));
     }
 
     Void test_validated_penalty_inconsistent_enclosures() {
@@ -2153,9 +2055,7 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPBoundsVector slack(1u,FloatDPBounds(0.5_x,1.0_x,dp));
 
         // No x in [-1,-0.5] can satisfy g(x)=w with w in [0.5,1].
-        ARIADNE_TEST_THROWS(
-            solver.feasibility_step(domain,g,codomain,point,slack),
-            InfeasibleProblemException);
+        ARIADNE_TESTING_EXPECT_THROWS(InfeasibleProblemException, solver.feasibility_step(domain,g,codomain,point,slack));
     }
 
     Void test_approximate_penalty_step() {
@@ -2172,34 +2072,27 @@ class TestNonlinearPenaltyFunctionSolver
         FloatDPApproximation weight(1.0_x,dp);
 
         solver.feasibility_step(domain,g,codomain,point,slack,weight);
-        ARIADNE_TEST_ASSERT(decide(weight==FloatDPApproximation(0.5_x,dp)));
-        ARIADNE_TEST_ASSERT(contains(domain,cast_exact(point)));
-        ARIADNE_TEST_ASSERT(contains(codomain,cast_exact(slack)));
-        ARIADNE_TEST_ASSERT(decide(point[0]==FloatDPApproximation(0.25_x,dp)));
-        ARIADNE_TEST_ASSERT(decide(slack[0]==FloatDPApproximation(0.25_x,dp)));
+        ARIADNE_TESTING_PROVE(decide(weight==FloatDPApproximation(0.5_x,dp)));
+        ARIADNE_TESTING_PROVE(contains(domain,cast_exact(point)));
+        ARIADNE_TESTING_PROVE(contains(codomain,cast_exact(slack)));
+        ARIADNE_TESTING_PROVE(decide(point[0]==FloatDPApproximation(0.25_x,dp)));
+        ARIADNE_TESTING_PROVE(decide(slack[0]==FloatDPApproximation(0.25_x,dp)));
     }
 };
 
 
 
-class TestApproximateNonlinearInteriorPointSolver {
+class TestApproximateNonlinearInteriorPointSolver : public Ariadne::Testing::ContextFixture
+{
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_stationary_zero());
-        ARIADNE_TEST_CALL(test_affine_zero());
-        ARIADNE_TEST_CALL(test_excluded_zero());
-        ARIADNE_TEST_CALL(test_slow_convergence());
-        ARIADNE_TEST_CALL(test_nonlinear_zero());
-        ARIADNE_TEST_CALL(test_small_infeasible_residual());
-        ARIADNE_TEST_CALL(test_uncertified_small_residual());
-        ARIADNE_TEST_CALL(test_logging_diagnostics());
-    }
+    using ContextFixture::ContextFixture;
+  public:
 
     Void test_stationary_zero() {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
         // The midpoint already solves the equality; its Newton steps
         // leave both the primal variable and multiplier stationary.
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),
             ValidatedVectorMultivariateFunction({x[0]}))));
     }
@@ -2207,7 +2100,7 @@ class TestApproximateNonlinearInteriorPointSolver {
     Void test_affine_zero() {
         auto x=ValidatedScalarMultivariateFunction::coordinates(2);
         // An underdetermined affine equality has interior solutions.
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x},{-1.0_x,1.0_x}}),
             ValidatedVectorMultivariateFunction({x[0]+2*x[1]-1}))));
     }
@@ -2216,7 +2109,7 @@ class TestApproximateNonlinearInteriorPointSolver {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
         // The full Newton step targets x=2 outside D. Backtracking
         // stays in D, and the final multiplier separates h(D) from zero.
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),
             ValidatedVectorMultivariateFunction({x[0]-2}))));
     }
@@ -2225,7 +2118,7 @@ class TestApproximateNonlinearInteriorPointSolver {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
         // Newton iteration for x^3 divides x by 3/2. Starting at 1/2,
         // eight steps do not meet the tolerance, and h(D) includes zero.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             ExactBoxType({{-1.0_x,2.0_x}}),
             ValidatedVectorMultivariateFunction({pow(x[0],3)}))));
     }
@@ -2235,7 +2128,7 @@ class TestApproximateNonlinearInteriorPointSolver {
         // sqrt(2) is not representable as a floating point number.
         // Inclusion in [1,2] must certify the zero, rather than rely
         // on an exactly vanishing numerical residual.
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{1.0_x,2.0_x}}),
             ValidatedVectorMultivariateFunction({sqr(x[0])-2}))));
     }
@@ -2245,7 +2138,7 @@ class TestApproximateNonlinearInteriorPointSolver {
         // The dyadic scale 2^-40 is exactly representable on every target.
         // Scaling does not move the root x=2 into [-1,1], although
         // every numerical residual in that box is below 1e-10.
-        ARIADNE_TEST_ASSERT(definitely(!solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(!solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),
             ValidatedVectorMultivariateFunction({Real(0x1p-40_x)*(x[0]-2)}))));
     }
@@ -2256,7 +2149,7 @@ class TestApproximateNonlinearInteriorPointSolver {
         // The multiple root has a singular interval Jacobian on D.
         // A small residual cannot replace the unavailable inclusion
         // certificate; neither does the dual interval exclude zero.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             ExactBoxType({{-1.0_x,2.0_x}}),
             ValidatedVectorMultivariateFunction({Real(0x1p-40_x)*pow(x[0],3)}))));
     }
@@ -2282,33 +2175,24 @@ class TestApproximateNonlinearInteriorPointSolver {
 
 
 // Interval-specific certified equality regressions, formerly in a separate test target.
-class TestIntervalNonlinearInteriorPointSolver {
+class TestIntervalNonlinearInteriorPointSolver : public Ariadne::Testing::ContextFixture
+{
   public:
-    Void test() {
-        ARIADNE_TEST_CALL(test_exact_midpoint());
-        ARIADNE_TEST_CALL(test_empty_dimensions());
-        ARIADNE_TEST_CALL(test_affine_contraction());
-        ARIADNE_TEST_CALL(test_nonlinear_contraction());
-        ARIADNE_TEST_CALL(test_singular_contraction());
-        ARIADNE_TEST_CALL(test_empty_local_contraction());
-        ARIADNE_TEST_CALL(test_infeasible_equality());
-        ARIADNE_TEST_CALL(test_uncertainty_requires_certificate());
-        ARIADNE_TEST_CALL(test_domain_preconditions());
-        ARIADNE_TEST_CALL(test_logging_diagnostics());
-    }
+    using ContextFixture::ContextFixture;
+  public:
 
     Void test_exact_midpoint() {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),ValidatedVectorMultivariateFunction({x[0]}))));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{0.0_x,1.0_x}}),ValidatedVectorMultivariateFunction({sqr(x[0])-0.25_x}))));
     }
 
     Void test_empty_dimensions() {
         // With no equalities, any point in the nonempty domain is feasible.
         ValidatedVectorMultivariateFunction vacuous(0u,1u);
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),vacuous)));
         // R^0 has one point. Exact zero is certified at that point;
         // a nonzero constant is not mistaken for a feasible equality.
@@ -2316,8 +2200,8 @@ class TestIntervalNonlinearInteriorPointSolver {
             0u,Vector<ValidatedNumber>({ValidatedNumber(0)}));
         ValidatedVectorMultivariateFunction nonzero_function=ValidatedVectorMultivariateFunction::constant(
             0u,Vector<ValidatedNumber>({ValidatedNumber(1)}));
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(ExactBoxType{},zero_function)));
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(ExactBoxType{},nonzero_function)));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(ExactBoxType{},zero_function)));
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(ExactBoxType{},nonzero_function)));
     }
 
     Void test_affine_contraction() {
@@ -2326,7 +2210,7 @@ class TestIntervalNonlinearInteriorPointSolver {
         // and multiplier intervals must admit a complete Newton search.
         ValidatedVectorMultivariateFunction h({x[0]-0.25_x,x[1]+0.25_x});
         ExactBoxType domain({{-1.0_x,1.0_x},{-1.0_x,1.0_x}});
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(domain,h)));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(domain,h)));
     }
 
     Void test_nonlinear_contraction() {
@@ -2335,19 +2219,19 @@ class TestIntervalNonlinearInteriorPointSolver {
         // or small residual cannot replace the final interval certificate.
         ValidatedVectorMultivariateFunction h({sqr(x[0])-2});
         ExactBoxType domain({{1.0_x,2.0_x}});
-        ARIADNE_TEST_ASSERT(definitely(solver.feasible_zero(domain,h)));
+        ARIADNE_TESTING_PROVE(definitely(solver.feasible_zero(domain,h)));
     }
 
     Void test_singular_contraction() {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
         ExactBoxType domain({{-1.0_x,1.0_x}});
         // Both roots +/-1/4 exist, but the Hessian enclosure is singular.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             domain,ValidatedVectorMultivariateFunction({sqr(x[0])-0.0625_x}))));
         // A constant equality has a singular Schur complement instead.
         ValidatedVectorMultivariateFunction constant=ValidatedVectorMultivariateFunction::constant(
             1u,Vector<ValidatedNumber>({ValidatedNumber(1)}));
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(domain,constant)));
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(domain,constant)));
     }
 
     Void test_empty_local_contraction() {
@@ -2355,25 +2239,25 @@ class TestIntervalNonlinearInteriorPointSolver {
         ExactBoxType domain({{-1.0_x,1.0_x}});
         // The zero is in D but outside the central search box. A local
         // exclusion cannot establish global infeasibility.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             domain,ValidatedVectorMultivariateFunction({x[0]-0.75_x}))));
         // Scaling preserves the root x=1/4, but the corresponding
         // barrier multiplier lies outside the local multiplier box.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             domain,ValidatedVectorMultivariateFunction({0.25_x*(x[0]-0.25_x)}))));
     }
 
     Void test_infeasible_equality() {
         auto x=ValidatedScalarMultivariateFunction::coordinates(1);
         ExactBoxType domain({{-1.0_x,1.0_x}});
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             domain,ValidatedVectorMultivariateFunction({x[0]-2}))));
         // Even an arbitrarily small numerical residual is no certificate.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             domain,ValidatedVectorMultivariateFunction({0x1p-40_x*(x[0]-2)}))));
         // The nonlinear equality has roots +/-1/4, both outside [1,2].
         // Its Newton image is disjoint from the local primal box.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             ExactBoxType({{1.0_x,2.0_x}}),
             ValidatedVectorMultivariateFunction({sqr(x[0])-0.0625_x}))));
     }
@@ -2386,7 +2270,7 @@ class TestIntervalNonlinearInteriorPointSolver {
         // The local contraction retains only part of the possible root
         // range. It cannot certify all represented constant values, and
         // an arbitrary numerical midpoint is not an equality certificate.
-        ARIADNE_TEST_ASSERT(is_indeterminate(solver.feasible_zero(
+        ARIADNE_TESTING_PROVE(is_indeterminate(solver.feasible_zero(
             ExactBoxType({{-1.0_x,1.0_x}}),h)));
     }
 
@@ -2398,9 +2282,9 @@ class TestIntervalNonlinearInteriorPointSolver {
         ExactBoxType singleton({{0.0_x,0.0_x}});
         // Each input violates a different public requirement before
         // constructing or evaluating any barrier reciprocal.
-        ARIADNE_TEST_FAIL(solver.feasible_zero(wrong_domain,h));
-        ARIADNE_TEST_FAIL(solver.feasible_zero(unbounded,h));
-        ARIADNE_TEST_FAIL(solver.feasible_zero(singleton,h));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasible_zero(wrong_domain,h));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasible_zero(unbounded,h));
+        ARIADNE_TESTING_EXPECT_EXCEPTION(solver.feasible_zero(singleton,h));
     }
 
     Void test_logging_diagnostics() {
@@ -2424,12 +2308,17 @@ class TestIntervalNonlinearInteriorPointSolver {
     IntervalNonlinearInteriorPointSolver solver;
 };
 
-Void test_nonlinear_header_contracts()
+class TestNonlinearHeaders : public Ariadne::Testing::ContextFixture
+{
+  public:
+    using ContextFixture::ContextFixture;
+
+    Void test_nonlinear_header_contracts()
 {
     const IndeterminateFeasibilityException indeterminate_exception;
     const DegenerateNonlinearFeasibilityProblemException degenerate;
-    ARIADNE_TEST_EQUAL(std::string(indeterminate_exception.what()),std::string("IndeterminateFeasibilityException"));
-    ARIADNE_TEST_EQUAL(std::string(degenerate.what()),std::string("DegenerateNonlinearFeasibilityProblemException"));
+    ARIADNE_TESTING_EXPECT_EQUAL(std::string(indeterminate_exception.what()),std::string("IndeterminateFeasibilityException"));
+    ARIADNE_TESTING_EXPECT_EQUAL(std::string(degenerate.what()),std::string("DegenerateNonlinearFeasibilityProblemException"));
 
     // Clone through the public solver interface to check dynamic dispatch,
     // concrete type preservation and independent ownership.
@@ -2441,9 +2330,9 @@ Void test_nonlinear_header_contracts()
         static_cast<const NonlinearProgrammingSolverInterface&>(approximate).clone());
     std::unique_ptr<NonlinearProgrammingSolverInterface> c2(
         static_cast<const NonlinearProgrammingSolverInterface&>(interval).clone());
-    ARIADNE_TEST_ASSERT(dynamic_cast<NonlinearInteriorPointSolver*>(c0.get())!=nullptr);
-    ARIADNE_TEST_ASSERT(dynamic_cast<ApproximateNonlinearInteriorPointSolver*>(c1.get())!=nullptr);
-    ARIADNE_TEST_ASSERT(dynamic_cast<IntervalNonlinearInteriorPointSolver*>(c2.get())!=nullptr);
+    ARIADNE_TESTING_PROVE(dynamic_cast<NonlinearInteriorPointSolver*>(c0.get())!=nullptr);
+    ARIADNE_TESTING_PROVE(dynamic_cast<ApproximateNonlinearInteriorPointSolver*>(c1.get())!=nullptr);
+    ARIADNE_TESTING_PROVE(dynamic_cast<IntervalNonlinearInteriorPointSolver*>(c2.get())!=nullptr);
 }
 
 Void test_nonlinear_template_feasibility_products()
@@ -2459,31 +2348,31 @@ Void test_nonlinear_template_feasibility_products()
 
     // [A -A I -I; 1 1 1 1] * [1 2 3 4] = [-3,10].
     auto result=Detail::feasibility_mul(A,v);
-    ARIADNE_TEST_EQUAL(result.size(),2u);
-    ARIADNE_TEST_EQUAL(result[0].raw(),X(-3.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(result[1].raw(),X(10.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(result.size(),2u);
+    ARIADNE_TESTING_EXPECT_EQUAL(result[0].raw(),X(-3.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(result[1].raw(),X(10.0_x,dp).raw());
 
     Vector<X> w(2u,dp);
     w[0]=X(3.0_x,dp);
     w[1]=X(5.0_x,dp);
     // Transpose product = [11,-1,8,2].
     auto transposed=Detail::feasibility_trmul(A,w);
-    ARIADNE_TEST_EQUAL(transposed.size(),4u);
-    ARIADNE_TEST_EQUAL(transposed[0].raw(),X(11.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(transposed[1].raw(),X(-1.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(transposed[2].raw(),X(8.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(transposed[3].raw(),X(2.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(transposed.size(),4u);
+    ARIADNE_TESTING_EXPECT_EQUAL(transposed[0].raw(),X(11.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(transposed[1].raw(),X(-1.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(transposed[2].raw(),X(8.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(transposed[3].raw(),X(2.0_x,dp).raw());
 
     Matrix<X> H(1u,1u,X(7.0_x,dp));
     // With D=[1,2,3,4], the symmetric augmented product is
     // [26,-3; -3,10].
     auto augmented=Detail::feasibility_adat(H,A,v);
-    ARIADNE_TEST_EQUAL(augmented.row_size(),2u);
-    ARIADNE_TEST_EQUAL(augmented.column_size(),2u);
-    ARIADNE_TEST_EQUAL(augmented[0][0].raw(),X(26.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(augmented[0][1].raw(),X(-3.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(augmented[1][0].raw(),X(-3.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(augmented[1][1].raw(),X(10.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented.row_size(),2u);
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented.column_size(),2u);
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented[0][0].raw(),X(26.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented[0][1].raw(),X(-3.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented[1][0].raw(),X(-3.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(augmented[1][1].raw(),X(10.0_x,dp).raw());
 
     // Elementwise helpers implement the same arithmetic on each component.
     Vector<X> x(2u,dp),d(2u,dp);
@@ -2492,12 +2381,12 @@ Void test_nonlinear_template_feasibility_products()
     auto shifted=Detail::esub(x,X(1.0_x,dp));
     auto multiplied=Detail::emul(x,d);
     auto divided=Detail::ediv(x,d);
-    ARIADNE_TEST_EQUAL(shifted[0].raw(),X(1.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(shifted[1].raw(),X(3.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(multiplied[0].raw(),X(8.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(multiplied[1].raw(),X(32.0_x,dp).raw());
-    ARIADNE_TEST_EQUAL(divided[0].raw(),X(0.5_x,dp).raw());
-    ARIADNE_TEST_EQUAL(divided[1].raw(),X(0.5_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(shifted[0].raw(),X(1.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(shifted[1].raw(),X(3.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(multiplied[0].raw(),X(8.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(multiplied[1].raw(),X(32.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(divided[0].raw(),X(0.5_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(divided[1].raw(),X(0.5_x,dp).raw());
 }
 
 // Verify the exact interval hull of scalar samples, including a singleton.
@@ -2507,11 +2396,11 @@ Void test_nonlinear_header_interval_hull()
     samples[0]=FloatDP(4.0_x,dp);
     samples[1]=FloatDP(-3.0_x,dp);
     samples[2]=FloatDP(2.0_x,dp);
-    ARIADNE_TEST_ASSERT(definitely(
+    ARIADNE_TESTING_PROVE(definitely(
         Detail::eivl(samples)==ExactIntervalType(-3.0_x,4.0_x)));
 
     RawFloatDPVector singleton(1u,FloatDP(2.0_x,dp));
-    ARIADNE_TEST_ASSERT(definitely(
+    ARIADNE_TESTING_PROVE(definitely(
         Detail::eivl(singleton)==ExactIntervalType(2.0_x,2.0_x)));
 }
 
@@ -2527,16 +2416,16 @@ Void test_nonlinear_header_atda()
     Matrix<X> result(1u,1u,zero);
     result[0][0]=X(5.0_x,dp);
     Detail::atda(result,A,diagonal);
-    ARIADNE_TEST_EQUAL(result[0][0].raw(),X(17.0_x,dp).raw());
+    ARIADNE_TESTING_EXPECT_EQUAL(result[0][0].raw(),X(17.0_x,dp).raw());
 
     Matrix<X> nonsquare(1u,2u,zero);
     Matrix<X> wrong_columns(2u,2u,zero);
     Vector<X> wrong_diagonal(2u,dp);
     wrong_diagonal[0]=X(1.0_x,dp);
     wrong_diagonal[1]=X(2.0_x,dp);
-    ARIADNE_TEST_FAIL(Detail::atda(nonsquare,A,diagonal));
-    ARIADNE_TEST_FAIL(Detail::atda(wrong_columns,A,diagonal));
-    ARIADNE_TEST_FAIL(Detail::atda(result,A,wrong_diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::atda(nonsquare,A,diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::atda(wrong_columns,A,diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::atda(result,A,wrong_diagonal));
 }
 
 // Reject invalid dimensions before constructing augmented feasibility
@@ -2546,21 +2435,21 @@ Void test_nonlinear_header_feasibility_preconditions()
     using X=FloatDPApproximation;
     const X zero(0.0_x,dp);
     RawFloatDPVector empty_samples(0u,FloatDP(0.0_x,dp));
-    ARIADNE_TEST_FAIL(Detail::eivl(empty_samples));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::eivl(empty_samples));
 
     Matrix<X> A(1u,1u,zero);
     A[0][0]=X(2.0_x,dp);
     Vector<X> short_primal(3u,dp);
     Vector<X> long_primal(5u,dp);
     // One equation and one variable require four primal coordinates.
-    ARIADNE_TEST_FAIL(Detail::feasibility_mul(A,short_primal));
-    ARIADNE_TEST_FAIL(Detail::feasibility_mul(A,long_primal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_mul(A,short_primal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_mul(A,long_primal));
 
     Vector<X> short_dual(1u,dp);
     Vector<X> long_dual(3u,dp);
     // The transpose takes one multiplier plus the final scalar.
-    ARIADNE_TEST_FAIL(Detail::feasibility_trmul(A,short_dual));
-    ARIADNE_TEST_FAIL(Detail::feasibility_trmul(A,long_dual));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_trmul(A,short_dual));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_trmul(A,long_dual));
 
     Matrix<X> H(1u,1u,zero);
     Matrix<X> wrong_rows(2u,1u,zero);
@@ -2569,43 +2458,283 @@ Void test_nonlinear_header_feasibility_preconditions()
     Vector<X> short_diagonal(3u,dp);
     // The augmented normal matrix requires a square m-by-m H and
     // exactly 2*(m+n) diagonal elements. Check independently.
-    ARIADNE_TEST_FAIL(Detail::feasibility_adat(wrong_rows,A,valid_diagonal));
-    ARIADNE_TEST_FAIL(Detail::feasibility_adat(wrong_columns,A,valid_diagonal));
-    ARIADNE_TEST_FAIL(Detail::feasibility_adat(H,A,short_diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_adat(wrong_rows,A,valid_diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_adat(wrong_columns,A,valid_diagonal));
+    ARIADNE_TESTING_EXPECT_EXCEPTION(Detail::feasibility_adat(H,A,short_diagonal));
 }
 
-Int main(Int argc, const char* argv[]) {
-    LoggingCommandLineInterface command_line;
-    if (not command_line.acquire(argc,argv)) return -1;
+};
 
-    ARIADNE_TEST_CALL(test_nonlinear_header_contracts());
-    ARIADNE_TEST_CALL(test_nonlinear_template_feasibility_products());
-    ARIADNE_TEST_CALL(test_nonlinear_header_interval_hull());
-    ARIADNE_TEST_CALL(test_nonlinear_header_atda());
-    ARIADNE_TEST_CALL(test_nonlinear_header_feasibility_preconditions());
-    TestNonlinearAdapterProbe().test();
+int main(int argc, char** argv)
+{
+    // Run logging diagnostics for coverage without flooding the test reporter.
+#ifdef _WIN32
+    Logger::instance().redirect_to_file("NUL");
+#else
+    Logger::instance().redirect_to_file("/dev/null");
+#endif
+    ARIADNE_TESTING_SUITE("test_nonlinear_programming");
+    auto header = Ariadne::Testing::fixture_variant<TestNonlinearHeaders>(
+        ariadne_test_suite, "headers");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(header, test_nonlinear_header_contracts);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(header, test_nonlinear_template_feasibility_products);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(header, test_nonlinear_header_interval_hull);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(header, test_nonlinear_header_atda);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(header, test_nonlinear_header_feasibility_preconditions);
 
-    // For each implementation, verify the common public contract first.
-    // Algorithm-specific regressions remain in their dedicated suites.
-    NonlinearInfeasibleInteriorPointSolver nlio;
-    TestNonlinearProgrammingSolver(nlio).test();
-    TestNonlinearInfeasibleInteriorPointSolver().test();
+    auto adapter = Ariadne::Testing::fixture_variant<TestNonlinearAdapterProbe>(
+        ariadne_test_suite, "adapter");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(adapter, test_standard_form);
 
-    NonlinearInteriorPointSolver nli;
-    TestNonlinearProgrammingSolver(nli).test();
-    TestNonlinearInteriorPointSolver().test();
+    auto common_infeasible = Ariadne::Testing::fixture_variant<TestNonlinearProgrammingSolver>(
+        ariadne_test_suite, "infeasible interior point / common",
+        [](Ariadne::Testing::Context& context) {
+            return TestNonlinearProgrammingSolver(context, NonlinearInfeasibleInteriorPointSolver{});
+        });
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasibility_check);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_unconstrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_simple_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_linear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_nonlinear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_common_point_feasibility_and_tolerance);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_base_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_overdetermined_equality_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_validation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasible_box_without_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasible_box_rejections);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasible_box_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasible_box_singular_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_base_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_unconstrained_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_equality_solution_rechecks_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_infeasible_minimisation_rejects_false_optima);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_common_validation_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_feasibility_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_minimisation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_stationary_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_one_sided_codomain_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_infeasible, test_unbounded_codomain_feasibility);
 
-    NonlinearPenaltyFunctionSolver nlp;
-    TestNonlinearProgrammingSolver(nlp).test();
-    TestNonlinearPenaltyFunctionSolver().test();
+    auto infeasible = Ariadne::Testing::fixture_variant<TestNonlinearInfeasibleInteriorPointSolver>(
+        ariadne_test_suite, "infeasible interior point / regressions");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_equality_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_certified_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_logging_solver_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_linear);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_nonlinear);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_infeasible);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_seven_dimensional);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_narrow_codomain);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_anisotropic_domain);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_multiple_constraints);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_nonlinear_seven_dimensional);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_boundary);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_rank_deficient);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_overdetermined);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_deterministic);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_numeric_step_failure);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_uncertified_minimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_redundant_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_candidate_iteration_budget);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(infeasible, test_minimisation_iteration_limit);
 
-    ApproximateNonlinearInteriorPointSolver nlia;
-    TestNonlinearProgrammingSolver(nlia).test();
-    TestApproximateNonlinearInteriorPointSolver().test();
+    auto common_interior = Ariadne::Testing::fixture_variant<TestNonlinearProgrammingSolver>(
+        ariadne_test_suite, "interior point / common",
+        [](Ariadne::Testing::Context& context) {
+            return TestNonlinearProgrammingSolver(context, NonlinearInteriorPointSolver{});
+        });
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasibility_check);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_unconstrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_simple_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_linear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_nonlinear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_common_point_feasibility_and_tolerance);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_base_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_overdetermined_equality_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_validation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasible_box_without_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasible_box_rejections);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasible_box_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasible_box_singular_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_base_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_unconstrained_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_equality_solution_rechecks_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_infeasible_minimisation_rejects_false_optima);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_common_validation_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_feasibility_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_minimisation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_stationary_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_one_sided_codomain_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interior, test_unbounded_codomain_feasibility);
 
-    IntervalNonlinearInteriorPointSolver nlii;
-    TestNonlinearProgrammingSolver(nlii).test();
-    TestIntervalNonlinearInteriorPointSolver().test();
-    return ARIADNE_TEST_FAILURES;
+    auto interior = Ariadne::Testing::fixture_variant<TestNonlinearInteriorPointSolver>(
+        ariadne_test_suite, "interior point / regressions");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_disjoint_constraint_minimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_relaxation_parameter);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_initial_feasibility_state);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_feasibility_results);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_feasibility_steps);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_singular_feasibility_step);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_feasibility_numerical_failures);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_feasibility_state_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_feasible_interior_minimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_unconstrained_minimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_rejects_uncertified_minimum);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_minimisation_step_exhausts_backtracking);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_nonlinear_equality_minimisation_backtracking);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_stationary_minimisation_step);
+#ifndef NDEBUG
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interior, test_minimisation_step_debug_preconditions);
+#endif
+
+    auto common_penalty = Ariadne::Testing::fixture_variant<TestNonlinearProgrammingSolver>(
+        ariadne_test_suite, "penalty function / common",
+        [](Ariadne::Testing::Context& context) {
+            return TestNonlinearProgrammingSolver(context, NonlinearPenaltyFunctionSolver{});
+        });
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasibility_check);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_unconstrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_simple_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_linear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_nonlinear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_common_point_feasibility_and_tolerance);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_base_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_overdetermined_equality_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_validation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasible_box_without_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasible_box_rejections);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasible_box_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasible_box_singular_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_base_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_unconstrained_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_equality_solution_rechecks_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_infeasible_minimisation_rejects_false_optima);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_common_validation_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_feasibility_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_minimisation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_stationary_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_one_sided_codomain_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_penalty, test_unbounded_codomain_feasibility);
+
+    auto penalty = Ariadne::Testing::fixture_variant<TestNonlinearPenaltyFunctionSolver>(
+        ariadne_test_suite, "penalty function / regressions");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_with_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_rounding_overlap);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_cancellation_uncertainty);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_unconstrained);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_slow_convergence);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_lower_domain_projection);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_active_constraint);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_detects_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_input_contracts);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_upper_codomain);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_boundary_requires_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_penalty_minimisation_lower_boundary_requires_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_input_contracts);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_with_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_point_feasibility_multiplier_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_approximate_penalty_step);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_feasibility_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_step_input_contracts);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_negative_derivative);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_derivative_containing_zero);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_multidimensional_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_validated_penalty_inconsistent_enclosures);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_primal_dual_penalty_equality_step);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_primal_dual_penalty_step_input_contracts);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_primal_dual_penalty_backtracking);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(penalty, test_approximate_penalty_backtracking);
+
+    auto common_approximate = Ariadne::Testing::fixture_variant<TestNonlinearProgrammingSolver>(
+        ariadne_test_suite, "approximate interior point / common",
+        [](Ariadne::Testing::Context& context) {
+            return TestNonlinearProgrammingSolver(context, ApproximateNonlinearInteriorPointSolver{});
+        });
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasibility_check);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_unconstrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_simple_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_linear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_nonlinear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_common_point_feasibility_and_tolerance);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_base_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_overdetermined_equality_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_validation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasible_box_without_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasible_box_rejections);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasible_box_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasible_box_singular_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_base_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_unconstrained_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_equality_solution_rechecks_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_infeasible_minimisation_rejects_false_optima);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_common_validation_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_feasibility_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_minimisation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_stationary_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_one_sided_codomain_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_approximate, test_unbounded_codomain_feasibility);
+
+    auto approximate = Ariadne::Testing::fixture_variant<TestApproximateNonlinearInteriorPointSolver>(
+        ariadne_test_suite, "approximate interior point / regressions");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_stationary_zero);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_affine_zero);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_excluded_zero);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_slow_convergence);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_nonlinear_zero);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_small_infeasible_residual);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_uncertified_small_residual);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(approximate, test_logging_diagnostics);
+
+    auto common_interval = Ariadne::Testing::fixture_variant<TestNonlinearProgrammingSolver>(
+        ariadne_test_suite, "interval interior point / common",
+        [](Ariadne::Testing::Context& context) {
+            return TestNonlinearProgrammingSolver(context, IntervalNonlinearInteriorPointSolver{});
+        });
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasibility_check);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_unconstrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_simple_constrained_optimisation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_linear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_nonlinear_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_nonlinear_equality_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_common_point_feasibility_and_tolerance);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_base_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_overdetermined_equality_validation);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_validation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasible_box_without_equalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasible_box_rejections);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasible_box_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasible_box_singular_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_base_infeasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_unconstrained_infeasibility_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_equality_solution_rechecks_inequalities);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_infeasible_minimisation_rejects_false_optima);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_common_validation_logging_diagnostics);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_feasibility_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_minimisation_dimension_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_stationary_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_one_sided_codomain_feasibility);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(common_interval, test_unbounded_codomain_feasibility);
+
+    auto interval = Ariadne::Testing::fixture_variant<TestIntervalNonlinearInteriorPointSolver>(
+        ariadne_test_suite, "interval interior point / regressions");
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_exact_midpoint);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_empty_dimensions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_affine_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_nonlinear_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_singular_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_empty_local_contraction);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_infeasible_equality);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_uncertainty_requires_certificate);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_domain_preconditions);
+    ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_logging_diagnostics);
+
+    return ARIADNE_TESTING_RUN_TESTS_WITH_ARGS(argc, argv);
 }
-
