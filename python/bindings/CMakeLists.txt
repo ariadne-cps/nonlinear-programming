@@ -37,5 +37,6 @@ target_link_libraries(pyariadne-nonlinear_programming INTERFACE
 
 ariadne_add_python_module(
     NAME nonlinear_programming
+    MODULE_IMPORT_NAME pyariadne_nonlinearprogramming
     MODULE_SOURCE nonlinear_programming_module.cpp
 )

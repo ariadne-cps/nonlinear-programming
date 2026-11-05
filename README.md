@@ -31,13 +31,9 @@ ctest --test-dir build --output-on-failure
 
 ## Python bindings
 
-With a compatible Python 3.11+ development environment the standalone build produces the `pyariadne` extension, including the nonlinear programming solver bindings.
+With a compatible Python 3.11+ development environment the standalone build produces the `pyariadne_nonlinearprogramming` extension, including the nonlinear programming solver bindings.
 
 ## Tutorials
 
 - C++: `tutorials/tutorial_nonlinear_programming/tutorial_nonlinear_programming.cpp`.
 - Python: `python/tutorials/tutorial_nonlinear_programming.py`.
-
-## License
-
-GNU General Public License v3.0.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pyariadne import *
+from pyariadne_nonlinearprogramming import *
 
 def exact_box(bounds):
     return FloatDPExactBox([{exact(lo): exact(hi)} for lo, hi in bounds])

@@ -1,4 +1,4 @@
-from pyariadne import (
+from pyariadne_nonlinearprogramming import (
     NonlinearInfeasibleInteriorPointSolver,
     NonlinearInteriorPointSolver,
     NonlinearPenaltyFunctionSolver,
