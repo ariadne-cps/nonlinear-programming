@@ -8,6 +8,7 @@
 [![codecov](https://codecov.io/gh/ariadne-cps/nonlinear-programming/branch/main/graph/badge.svg)](https://codecov.io/gh/ariadne-cps/nonlinear-programming)
 
 Ariadne Nonlinear Programming provides C++20 nonlinear minimisation and validated feasibility methods, including interior-point and penalty-function solvers.
+Although independently maintained and usable, this repository is also part of the [Ariadne repository structure](https://github.com/ariadne-cps/ariadne/blob/main/doc/structure.md).
 
 ## Layout
 
@@ -16,7 +17,7 @@ Public headers live in `include/nonlinear-programming`, implementation files in 
 ## Dependencies
 
 - [ariadne-cps/function](https://github.com/ariadne-cps/function), included as a Git submodule.
-- [ariadne-cps/configuration](https://github.com/ariadne-cps/configuration), providing the shared build configuration.
+- [ariadne-cps/build](https://github.com/ariadne-cps/build), providing the shared build configuration.
 
 ## Build
 
