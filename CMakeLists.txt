@@ -21,8 +21,9 @@ endif()
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
     # Check direct occurrences only; child commits guarantee internal consistency.
+    # Testing is development-only and excluded from dependency consistency.
     require_same_dependency_commit(Build CHAINS
-        "build" "function|build" "testing|build")
+        "build" "function|build" "logging|build")
 endif()
 
 setup_project()
@@ -36,7 +37,7 @@ target_include_directories(nonlinear_programming INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/ariadne-nonlinear-programming>
 )
-target_link_libraries(nonlinear_programming INTERFACE function)
+target_link_libraries(nonlinear_programming INTERFACE function logging)
 
 add_subdirectory(src)
 target_link_libraries(NONLINEAR_PROGRAMMING_SRC PRIVATE nonlinear_programming)
@@ -53,7 +54,7 @@ setup_project_library(
     LINK_LIBRARIES nonlinear_programming
 )
 
-setup_standalone_project_tests(
+setup_standalone_project(
     TARGET ariadne-nonlinear-programming
     TEST_DIRECTORY tests
     TEST_TARGET tests
