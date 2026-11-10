@@ -35,5 +35,5 @@ With a compatible Python 3.11+ development environment the standalone build prod
 
 ## Tutorials
 
-- C++: `tutorials/tutorial_nonlinear_programming/tutorial_nonlinear_programming.cpp`.
-- Python: `python/tutorials/tutorial_nonlinear_programming.py`.
+- C++: `tutorial/tutorial_nonlinear_programming.cpp`.
+- Python: `python/tutorial.py`.
