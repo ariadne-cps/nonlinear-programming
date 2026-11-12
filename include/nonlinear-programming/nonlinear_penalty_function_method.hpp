@@ -41,11 +41,11 @@ namespace Ariadne {
 //! Since the minimiser is not unique, we need to add penalty terms \f$-\mu/2(\log(x_u-x)+log(x-x_l))\f$ and \f$-\nu/2(\log(w_u-w)+log(w-w_l))\f$.
 //! It suffices to add a penalty in \f$x\f$.
 class NonlinearPenaltyFunctionSolver
-    : public NonlinearProgrammingSolverBase
-{
+    : public NonlinearProgrammingSolverBase {
   public:
-    using NonlinearProgrammingSolverBase::minimise;
     using NonlinearProgrammingSolverBase::feasible;
+    using NonlinearProgrammingSolverBase::minimise;
+
   public:
     /** @brief Allocate a dynamically owned copy of this solver. */
     virtual NonlinearPenaltyFunctionSolver* clone() const;
@@ -65,10 +65,6 @@ class NonlinearPenaltyFunctionSolver
     virtual Void feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
                                   FloatDPApproximationVector& x, FloatDPApproximationVector& y, FloatDPApproximationVector& z) const;
 };
-
-
-
-
 
 } // namespace Ariadne
 

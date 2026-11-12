@@ -30,6 +30,7 @@
 // "Interior-point methods for nonconvex nonlinear programming: Jamming and comparative numerical testing"
 
 #include "nonlinear-programming/nonlinear_penalty_function_method.hpp"
+
 #include "nonlinear-programming/nonlinear_programming.tpl.hpp"
 
 namespace Ariadne {
@@ -39,28 +40,26 @@ using namespace Detail;
 //------- NonlinearPenaltyFunctionSolver ------------------------------------------//
 
 NonlinearPenaltyFunctionSolver* NonlinearPenaltyFunctionSolver::
-clone() const
-{
+    clone() const {
     return new NonlinearPenaltyFunctionSolver(*this);
 }
 
 ValidatedVectorType NonlinearPenaltyFunctionSolver::
-minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D,
-         ValidatedVectorMultivariateFunction g, ExactBoxType C) const
-{
+    minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D,
+             ValidatedVectorMultivariateFunction g, ExactBoxType C) const {
     LOGGING_SCOPE_CREATE;
-    ARIADNE_PRECONDITION(f.argument_size()==D.size());
-    ARIADNE_PRECONDITION(g.argument_size()==D.size());
-    ARIADNE_PRECONDITION(g.result_size()==C.size());
-    const SizeType n=D.size();
-    const SizeType m=C.size();
-    for(SizeType i=0; i!=n; ++i) {
+    ARIADNE_PRECONDITION(f.argument_size() == D.size());
+    ARIADNE_PRECONDITION(g.argument_size() == D.size());
+    ARIADNE_PRECONDITION(g.result_size() == C.size());
+    const SizeType n = D.size();
+    const SizeType m = C.size();
+    for (SizeType i = 0; i != n; ++i) {
         // This implementation uses a projected descent in a bounded box.
         ARIADNE_PRECONDITION(!is_inf(D[i].lower_bound()));
         ARIADNE_PRECONDITION(!is_inf(D[i].upper_bound()));
     }
 
-    if(definitely(disjoint(apply(g,D),C))) {
+    if (definitely(disjoint(apply(g, D), C))) {
         throw InfeasibleProblemException();
     }
 
@@ -70,120 +69,140 @@ minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D,
     // A regularised Gauss-Newton matrix supplies a descent direction;
     // backtracking tests the ACTUAL penalised objective, not just a
     // linear model, and every trial is projected back into D.
-    FloatDPApproximationVector x=midpoint(D);
-    const FloatDPApproximationVector dl=lower_bounds(D);
-    const FloatDPApproximationVector du=upper_bounds(D);
-    const FloatDPApproximationVector cl=lower_bounds(C);
-    const FloatDPApproximationVector cu=upper_bounds(C);
-    FloatDPApproximation rho(1.0_x,dp);
+    FloatDPApproximationVector x = midpoint(D);
+    const FloatDPApproximationVector dl = lower_bounds(D);
+    const FloatDPApproximationVector du = upper_bounds(D);
+    const FloatDPApproximationVector cl = lower_bounds(C);
+    const FloatDPApproximationVector cu = upper_bounds(C);
+    FloatDPApproximation rho(1.0_x, dp);
 
-    for(SizeType stage=0; stage!=10; ++stage) {
-        for(SizeType iteration=0; iteration!=32; ++iteration) {
-            auto ddf=f.evaluate(FloatDPApproximationDifferential::variables(1,x));
-            FloatDPApproximationVector gradient=transpose(ddf.gradient());
-            FloatDPApproximationVector residual(m,dp);
-            FloatDPApproximationMatrix active_jacobian(m,n,dp);
-            if(m!=0u) {
-                auto ddg=g.evaluate(FloatDPApproximationDifferential::variables(1,x));
-                FloatDPApproximationVector gx=ddg.value();
-                FloatDPApproximationMatrix J=ddg.jacobian();
-                for(SizeType j=0; j!=m; ++j) {
-                    residual[j]=zero;
-                    if(decide(gx[j]<cl[j])) { residual[j]=gx[j]-cl[j]; }
-                    else if(decide(gx[j]>cu[j])) { residual[j]=gx[j]-cu[j]; }
-                    for(SizeType i=0; i!=n; ++i) {
-                        if(decide(residual[j]!=zero)) {
-                            active_jacobian[j][i]=J[j][i];
+    for (SizeType stage = 0; stage != 10; ++stage) {
+        for (SizeType iteration = 0; iteration != 32; ++iteration) {
+            auto ddf = f.evaluate(FloatDPApproximationDifferential::variables(1, x));
+            FloatDPApproximationVector gradient = transpose(ddf.gradient());
+            FloatDPApproximationVector residual(m, dp);
+            FloatDPApproximationMatrix active_jacobian(m, n, dp);
+            if (m != 0u) {
+                auto ddg = g.evaluate(FloatDPApproximationDifferential::variables(1, x));
+                FloatDPApproximationVector gx = ddg.value();
+                FloatDPApproximationMatrix J = ddg.jacobian();
+                for (SizeType j = 0; j != m; ++j) {
+                    residual[j] = zero;
+                    if (decide(gx[j] < cl[j])) {
+                        residual[j] = gx[j] - cl[j];
+                    } else if (decide(gx[j] > cu[j])) {
+                        residual[j] = gx[j] - cu[j];
+                    }
+                    for (SizeType i = 0; i != n; ++i) {
+                        if (decide(residual[j] != zero)) {
+                            active_jacobian[j][i] = J[j][i];
                         } else {
-                            active_jacobian[j][i]=FloatDPApproximation(0.0_x,dp);
+                            active_jacobian[j][i] = FloatDPApproximation(0.0_x, dp);
                         }
                     }
                 }
-                gradient+=rho*(transpose(active_jacobian)*residual);
+                gradient += rho * (transpose(active_jacobian) * residual);
             }
 
-            FloatDPApproximationMatrix regularised_hessian(n,n,dp);
-            for(SizeType i=0; i!=n; ++i) {
-                regularised_hessian[i][i]=one;
+            FloatDPApproximationMatrix regularised_hessian(n, n, dp);
+            for (SizeType i = 0; i != n; ++i) {
+                regularised_hessian[i][i] = one;
             }
-            if(m!=0u) {
-                regularised_hessian+=rho*(transpose(active_jacobian)*active_jacobian);
+            if (m != 0u) {
+                regularised_hessian += rho * (transpose(active_jacobian) * active_jacobian);
             }
-            FloatDPApproximationVector direction=solve(regularised_hessian,gradient);
-            if(decide(norm(direction)<FloatDPApproximation(1e-12_a,dp))) { break; }
+            FloatDPApproximationVector direction = solve(regularised_hessian, gradient);
+            if (decide(norm(direction) < FloatDPApproximation(1e-12_a, dp))) {
+                break;
+            }
 
-            FloatDPApproximation value=f(x);
-            if(m!=0u) { value+=rho*dot(residual,residual)*0.5_exact; }
-            FloatDPApproximation alpha(1.0_x,dp);
-            Bool improved=false;
-            for(SizeType backtrack=0; backtrack!=32; ++backtrack) {
-                FloatDPApproximationVector candidate=x-alpha*direction;
-                for(SizeType i=0; i!=n; ++i) {
-                    if(decide(candidate[i]<dl[i])) { candidate[i]=dl[i]; }
-                    if(decide(candidate[i]>du[i])) { candidate[i]=du[i]; }
-                }
-                FloatDPApproximation trial_value=f(candidate);
-                if(m!=0u) {
-                    FloatDPApproximationVector trial_g=g(candidate);
-                    for(SizeType j=0; j!=m; ++j) {
-                        FloatDPApproximation rj=zero;
-                        if(decide(trial_g[j]<cl[j])) { rj=trial_g[j]-cl[j]; }
-                        else if(decide(trial_g[j]>cu[j])) { rj=trial_g[j]-cu[j]; }
-                        trial_value+=rho*rj*rj*0.5_exact;
+            FloatDPApproximation value = f(x);
+            if (m != 0u) {
+                value += rho * dot(residual, residual) * 0.5_exact;
+            }
+            FloatDPApproximation alpha(1.0_x, dp);
+            Bool improved = false;
+            for (SizeType backtrack = 0; backtrack != 32; ++backtrack) {
+                FloatDPApproximationVector candidate = x - alpha * direction;
+                for (SizeType i = 0; i != n; ++i) {
+                    if (decide(candidate[i] < dl[i])) {
+                        candidate[i] = dl[i];
+                    }
+                    if (decide(candidate[i] > du[i])) {
+                        candidate[i] = du[i];
                     }
                 }
-                if(decide(trial_value<value)) {
-                    x=candidate;
-                    improved=true;
+                FloatDPApproximation trial_value = f(candidate);
+                if (m != 0u) {
+                    FloatDPApproximationVector trial_g = g(candidate);
+                    for (SizeType j = 0; j != m; ++j) {
+                        FloatDPApproximation rj = zero;
+                        if (decide(trial_g[j] < cl[j])) {
+                            rj = trial_g[j] - cl[j];
+                        } else if (decide(trial_g[j] > cu[j])) {
+                            rj = trial_g[j] - cu[j];
+                        }
+                        trial_value += rho * rj * rj * 0.5_exact;
+                    }
+                }
+                if (decide(trial_value < value)) {
+                    x = candidate;
+                    improved = true;
                     break;
                 }
-                alpha*=0.5_exact;
+                alpha *= 0.5_exact;
             }
-            if(!improved) { break; }
+            if (!improved) {
+                break;
+            }
         }
-        LOGGING_PRINTLN_AT(1,"rho="<<rho<<" x="<<x<<" f(x)="<<f(x));
-        rho*=8.0_x;
+        LOGGING_PRINTLN_AT(1, "rho=" << rho << " x=" << x << " f(x)=" << f(x));
+        rho *= 8.0_x;
     }
 
     // A small penalised residual is not a feasibility certificate.
     // Never silently return an infeasible point as a validated result.
-    if(!contains(D,exact_vector(x)) ||
-       !this->validate_feasibility(D,g,C,exact_vector(x))) {
+    if (!contains(D, exact_vector(x)) ||
+        !this->validate_feasibility(D, g, C, exact_vector(x))) {
         throw IndeterminateFeasibilityException();
     }
     return ValidatedVectorType(exact_vector(x));
 }
 
 ValidatedKleenean NonlinearPenaltyFunctionSolver::
-feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const
-{
+    feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const {
     LOGGING_SCOPE_CREATE;
-    LOGGING_PRINTLN("D="<<D<<" g="<<g<<" C="<<C<<" ");
+    LOGGING_PRINTLN("D=" << D << " g=" << g << " C=" << C << " ");
 
-    FloatDPApproximationVector x=midpoint(D);
+    FloatDPApproximationVector x = midpoint(D);
 
     // Do not take the midpoint of an unbounded interval:
     // it can be NaN before the slack variable is initialised.
-    FloatDPApproximationVector w(C.size(),zero);
-    for(SizeType i=0; i!=C.size(); ++i) {
-        if(is_inf(C[i].upper_bound()) && is_inf(C[i].lower_bound())) { w[i]=zero; }
-        else if(is_inf(C[i].upper_bound())) { w[i]=C[i].lower_bound()+one; }
-        else if(is_inf(C[i].lower_bound())) { w[i]=C[i].upper_bound()-one; }
-        else { w[i]=midpoint(C[i]); }
+    FloatDPApproximationVector w(C.size(), zero);
+    for (SizeType i = 0; i != C.size(); ++i) {
+        if (is_inf(C[i].upper_bound()) && is_inf(C[i].lower_bound())) {
+            w[i] = zero;
+        } else if (is_inf(C[i].upper_bound())) {
+            w[i] = C[i].lower_bound() + one;
+        } else if (is_inf(C[i].lower_bound())) {
+            w[i] = C[i].upper_bound() - one;
+        } else {
+            w[i] = midpoint(C[i]);
+        }
     }
 
-    FloatDPApproximationVector y(C.size(),zero);
+    FloatDPApproximationVector y(C.size(), zero);
 
-    LOGGING_PRINTLN("x="<<x<<" w="<<w<<" y="<<y);
+    LOGGING_PRINTLN("x=" << x << " w=" << w << " y=" << y);
 
-    for(SizeType i=0; i!=10; ++i) {
-        this->feasibility_step(D,g,C,x,y,w);
+    for (SizeType i = 0; i != 10; ++i) {
+        this->feasibility_step(D, g, C, x, y, w);
     }
-    const auto point_status=this->check_feasibility(D,g,C,exact_vector(x),exact_vector(y));
-    if(definitely(!point_status)) {
+    const auto point_status = this->check_feasibility(D, g, C, exact_vector(x), exact_vector(y));
+    if (definitely(!point_status)) {
         // Failure of a local point check cannot certify infeasibility
         // of the entire domain. Only a global certificate can do that.
-        if(this->is_infeasibility_certificate(D,g,C,exact_vector(y))) {
+        if (this->is_infeasibility_certificate(D, g, C, exact_vector(y))) {
             return false;
         }
         return indeterminate;
@@ -192,71 +211,75 @@ feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) 
 }
 
 Void NonlinearPenaltyFunctionSolver::
-feasibility_step(const ExactBoxType& X, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& W,
-                 FloatDPApproximationVector& x, FloatDPApproximationVector& w, FloatDPApproximation& mu) const
-{
+    feasibility_step(const ExactBoxType& X, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& W,
+                     FloatDPApproximationVector& x, FloatDPApproximationVector& w, FloatDPApproximation& mu) const {
     LOGGING_SCOPE_CREATE;
-    ApproximateVectorMultivariateFunction h(0u,X.dimension());
-    const SizeType n=X.size();
-    const SizeType m=W.size();
+    ApproximateVectorMultivariateFunction h(0u, X.dimension());
+    const SizeType n = X.size();
+    const SizeType m = W.size();
 
-    LOGGING_PRINTLN("x="<<x);
-    LOGGING_PRINTLN("w="<<w);
+    LOGGING_PRINTLN("x=" << x);
+    LOGGING_PRINTLN("w=" << w);
 
-    Vector<FloatDPApproximationDifferential> ddgx=g.evaluate(FloatDPApproximationDifferential::variables(2,x));
-    Vector<FloatDPApproximationDifferential> ddhx=h.evaluate(FloatDPApproximationDifferential::variables(2,x));
+    Vector<FloatDPApproximationDifferential> ddgx = g.evaluate(FloatDPApproximationDifferential::variables(2, x));
+    Vector<FloatDPApproximationDifferential> ddhx = h.evaluate(FloatDPApproximationDifferential::variables(2, x));
 
     mu *= 0.5;
-    LOGGING_PRINTLN("mu="<<mu);
+    LOGGING_PRINTLN("mu=" << mu);
 
     // G is the constraint value vector
     FloatDPApproximationVector gx = ddgx.value();
     FloatDPApproximationVector hx = ddhx.value();
-    LOGGING_PRINTLN("g(x)="<<gx);
-    LOGGING_PRINTLN("h(x)="<<hx);
+    LOGGING_PRINTLN("g(x)=" << gx);
+    LOGGING_PRINTLN("h(x)=" << hx);
 
     // A is the transpose derivative matrix aij=dgi/dxj
     FloatDPApproximationMatrix A = transpose(ddgx.jacobian());
-    LOGGING_PRINTLN("A=Dg(x)="<<A);
+    LOGGING_PRINTLN("A=Dg(x)=" << A);
     FloatDPApproximationMatrix B = transpose(ddhx.jacobian());
     // h has no components in this overload, so its Jacobian has zero columns.
-    B.resize(n,0);
-    LOGGING_PRINTLN("B=Dh(x)="<<B);
+    B.resize(n, 0);
+    LOGGING_PRINTLN("B=Dh(x)=" << B);
 
     // H is the Hessian matrix H[i1,i2] = df/dx[i1]dx[i2] + Sum_[j] lambda[j]*dg[j]/dx[i1]dx[i2]
-    FloatDPApproximationMatrix H(n,n,dp);
-    for(SizeType j=0; j!=m; ++j) { H += (gx[j]-w[j]) * ddgx[j].hessian(); }
-    LOGGING_PRINTLN("H="<<H);
+    FloatDPApproximationMatrix H(n, n, dp);
+    for (SizeType j = 0; j != m; ++j) {
+        H += (gx[j] - w[j]) * ddgx[j].hessian();
+    }
+    LOGGING_PRINTLN("H=" << H);
 
-    FloatDPApproximationDiagonalMatrix D(n,dp);
-    FloatDPApproximationDiagonalMatrix E(m,dp);
-    for(SizeType i=0; i!=n; ++i) { D[i] = rec(sqr(x[i]-X[i].lower_bound())) + rec(sqr(X[i].upper_bound()-x[i])); }
-    for(SizeType j=0; j!=m; ++j) { E[j] = rec(sqr(w[j]-W[j].lower_bound())) + rec(sqr(W[j].upper_bound()-w[j])); }
-    LOGGING_PRINTLN("D="<<D);
-    LOGGING_PRINTLN("E="<<E);
+    FloatDPApproximationDiagonalMatrix D(n, dp);
+    FloatDPApproximationDiagonalMatrix E(m, dp);
+    for (SizeType i = 0; i != n; ++i) {
+        D[i] = rec(sqr(x[i] - X[i].lower_bound())) + rec(sqr(X[i].upper_bound() - x[i]));
+    }
+    for (SizeType j = 0; j != m; ++j) {
+        E[j] = rec(sqr(w[j] - W[j].lower_bound())) + rec(sqr(W[j].upper_bound() - w[j]));
+    }
+    LOGGING_PRINTLN("D=" << D);
+    LOGGING_PRINTLN("E=" << E);
 
     FloatDPApproximationMatrix S = H + B * transpose(B);
     S += D;
-    LOGGING_PRINTLN("S="<<S);
+    LOGGING_PRINTLN("S=" << S);
 
-    FloatDPApproximationMatrix R=inverse(S);
-    LOGGING_PRINTLN("inverse(S)="<<R);
+    FloatDPApproximationMatrix R = inverse(S);
+    LOGGING_PRINTLN("inverse(S)=" << R);
 
     // Compute residuals
-    FloatDPApproximationVector rx = A*gx + B * hx ; // + 1/(x.upper_bound()-x) + 1/x.lower_bound()-x if no regularisation
-    FloatDPApproximationVector rw = w-gx;
+    FloatDPApproximationVector rx = A * gx + B * hx; // + 1/(x.upper_bound()-x) + 1/x.lower_bound()-x if no regularisation
+    FloatDPApproximationVector rw = w - gx;
 
-    LOGGING_PRINTLN("rx="<<rx);
-    LOGGING_PRINTLN("rw="<<rw);
+    LOGGING_PRINTLN("rx=" << rx);
+    LOGGING_PRINTLN("rw=" << rw);
 
     FloatDPApproximationVector dx = R * (rx + A * rw);
-    FloatDPApproximationVector dw = rw + transpose(A)*dx;
-    LOGGING_PRINTLN("dx="<<dx);
-    LOGGING_PRINTLN("dw="<<dw);
+    FloatDPApproximationVector dw = rw + transpose(A) * dx;
+    LOGGING_PRINTLN("dx=" << dx);
+    LOGGING_PRINTLN("dw=" << dw);
 
-
-    FloatDPApproximationVector newx(n,dp);
-    FloatDPApproximationVector neww(m,dp);
+    FloatDPApproximationVector newx(n, dp);
+    FloatDPApproximationVector neww(m, dp);
 
     static const FloatDPApproximation ALPHA_SCALE_FACTOR = 0.75_approx;
 
@@ -265,96 +288,93 @@ feasibility_step(const ExactBoxType& X, const ApproximateVectorMultivariateFunct
         newx = x - alpha * dx;
         neww = w - alpha * dw;
         alpha *= ALPHA_SCALE_FACTOR;
-    } while ( !contains(X,exact_vector(newx)) || !contains(W,exact_vector(neww)) );
+    } while (!contains(X, exact_vector(newx)) || !contains(W, exact_vector(neww)));
     alpha /= ALPHA_SCALE_FACTOR;
 
-    LOGGING_PRINTLN("alpha="<<alpha);
+    LOGGING_PRINTLN("alpha=" << alpha);
 
-    LOGGING_PRINTLN("newx="<<newx);
-    LOGGING_PRINTLN("neww="<<neww<<"\n");
+    LOGGING_PRINTLN("newx=" << newx);
+    LOGGING_PRINTLN("neww=" << neww << "\n");
 
-    x=newx;
-    w=neww;
+    x = newx;
+    w = neww;
 
     return;
 }
 
-
 Void NonlinearPenaltyFunctionSolver::
-feasibility_step(const ExactBoxType& D, const ValidatedVectorMultivariateFunction& g, const ExactBoxType& C,
-                 FloatDPBoundsVector& x, FloatDPBoundsVector& w) const
-{
+    feasibility_step(const ExactBoxType& D, const ValidatedVectorMultivariateFunction& g, const ExactBoxType& C,
+                     FloatDPBoundsVector& x, FloatDPBoundsVector& w) const {
     LOGGING_SCOPE_CREATE;
-    ARIADNE_PRECONDITION(D.size()==g.argument_size());
-    ARIADNE_PRECONDITION(C.size()==g.result_size());
-    ARIADNE_PRECONDITION(x.size()==D.size());
-    ARIADNE_PRECONDITION(w.size()==C.size());
+    ARIADNE_PRECONDITION(D.size() == g.argument_size());
+    ARIADNE_PRECONDITION(C.size() == g.result_size());
+    ARIADNE_PRECONDITION(x.size() == D.size());
+    ARIADNE_PRECONDITION(w.size() == C.size());
 
     // x and w represent sets of possible solutions, not approximate
     // iterates. Only intersect with enclosures that are necessary for
     // x in D, w in C, and g(x)=w; this never discards a solution.
-    x=refinement(x,cast_singleton(D));
-    w=refinement(w,cast_singleton(C));
+    x = refinement(x, cast_singleton(D));
+    w = refinement(w, cast_singleton(C));
 
-    FloatDPBoundsVector gx=g(x);
-    for(SizeType j=0; j!=w.size(); ++j) {
-        if(definitely(disjoint(UpperIntervalType(gx[j]),UpperIntervalType(w[j])))) {
+    FloatDPBoundsVector gx = g(x);
+    for (SizeType j = 0; j != w.size(); ++j) {
+        if (definitely(disjoint(UpperIntervalType(gx[j]), UpperIntervalType(w[j])))) {
             throw InfeasibleProblemException();
         }
     }
-    w=refinement(w,gx);
+    w = refinement(w, gx);
 
     // In one dimension, the mean-value inclusion
     // g_j(x) in g_j(mid(x)) + Dg_j(x)*(x-mid(x))
     // gives a rigorous backward contraction when the derivative
     // is separated from zero. No numerical point is promoted to a
     // validated enclosure.
-    if(x.size()==1u) {
-        FloatDPBoundsVector mx=midpoint(x);
-        FloatDPBoundsVector gmx=g(mx);
-        Vector<FloatDPBoundsDifferential> dgx=
-            g.evaluate(FloatDPBoundsDifferential::variables(1,x));
-        FloatDPBoundsMatrix J=dgx.jacobian();
-        const FloatDPBounds zero_bounds(0,dp);
-        for(SizeType j=0; j!=w.size(); ++j) {
-            if(definitely(J[j][0]>zero_bounds) || definitely(J[j][0]<zero_bounds)) {
-                x[0]=refinement(x[0],mx[0]+(w[j]-gmx[j])/J[j][0]);
+    if (x.size() == 1u) {
+        FloatDPBoundsVector mx = midpoint(x);
+        FloatDPBoundsVector gmx = g(mx);
+        Vector<FloatDPBoundsDifferential> dgx =
+            g.evaluate(FloatDPBoundsDifferential::variables(1, x));
+        FloatDPBoundsMatrix J = dgx.jacobian();
+        const FloatDPBounds zero_bounds(0, dp);
+        for (SizeType j = 0; j != w.size(); ++j) {
+            if (definitely(J[j][0] > zero_bounds) || definitely(J[j][0] < zero_bounds)) {
+                x[0] = refinement(x[0], mx[0] + (w[j] - gmx[j]) / J[j][0]);
             }
         }
         // Shrinking x may also shrink the forward image of g.
-        w=refinement(w,g(x));
+        w = refinement(w, g(x));
     }
-    LOGGING_PRINTLN("validated x="<<x<<" w="<<w);
+    LOGGING_PRINTLN("validated x=" << x << " w=" << w);
 }
-
 
 // Use a penalty approach without multipliers on the constraint functions
 // Solve g(x)=w, x in D, w in C; Lagrangian y.(g(x)-w)
 Void NonlinearPenaltyFunctionSolver::
-feasibility_step(ExactBoxType const& D, ApproximateVectorMultivariateFunction const& g, ExactBoxType const& C,
-                 FloatDPApproximationVector& x, FloatDPApproximationVector& y, FloatDPApproximationVector& w) const
-{
+    feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
+                     FloatDPApproximationVector& x, FloatDPApproximationVector& y, FloatDPApproximationVector& w) const {
     LOGGING_SCOPE_CREATE;
-    auto m=y.size(); auto n=x.size();
+    auto m = y.size();
+    auto n = x.size();
 
-    FloatDPApproximationVector cl=lower_bounds(C);
-    FloatDPApproximationVector cu=upper_bounds(C);
-    FloatDPApproximationVector dl=lower_bounds(D);
-    FloatDPApproximationVector du=upper_bounds(D);
+    FloatDPApproximationVector cl = lower_bounds(C);
+    FloatDPApproximationVector cu = upper_bounds(C);
+    FloatDPApproximationVector dl = lower_bounds(D);
+    FloatDPApproximationVector du = upper_bounds(D);
 
-    LOGGING_PRINTLN("D="<<D<<", g="<<g<<", C="<<C);
-    LOGGING_PRINTLN("dl="<<dl<<", du="<<du);
-    LOGGING_PRINTLN("cl="<<cl<<", cu="<<cu);
-    LOGGING_PRINTLN("w="<<w<<", x="<<x<<", y="<<y);
+    LOGGING_PRINTLN("D=" << D << ", g=" << g << ", C=" << C);
+    LOGGING_PRINTLN("dl=" << dl << ", du=" << du);
+    LOGGING_PRINTLN("cl=" << cl << ", cu=" << cu);
+    LOGGING_PRINTLN("w=" << w << ", x=" << x << ", y=" << y);
 
     // All five dimensions belong to the public step contract. The
     // former x.size()==n and y.size()==m assertions were tautologies,
     // because n and m are defined from those respective vector sizes.
-    ARIADNE_PRECONDITION(g.argument_size()==D.size());
-    ARIADNE_PRECONDITION(g.result_size()==C.size());
-    ARIADNE_PRECONDITION(x.size()==D.size());
-    ARIADNE_PRECONDITION(y.size()==C.size());
-    ARIADNE_PRECONDITION(w.size()==C.size());
+    ARIADNE_PRECONDITION(g.argument_size() == D.size());
+    ARIADNE_PRECONDITION(g.result_size() == C.size());
+    ARIADNE_PRECONDITION(x.size() == D.size());
+    ARIADNE_PRECONDITION(y.size() == C.size());
+    ARIADNE_PRECONDITION(w.size() == C.size());
 
     // Solve the problem
     //   minimise Sum -log(w-cl)-log(cu-w)-log(x-dl)-log(du-x)
@@ -373,141 +393,160 @@ feasibility_step(ExactBoxType const& D, ApproximateVectorMultivariateFunction co
     //   (1/(x-dl)^2 + 1/(du-x)^2 - y.D^2x) dx - Dg'(x) dy = - ( 1/(du-x) - 1/(x-dl) - y.Dg(x) )
     //                           dw - Dg(x) dx             = - ( w - g(x) )
 
-    Vector<Differential<ApproximateNumericType>> ddgx=g.evaluate(Differential<ApproximateNumericType>::variables(2,x));
-    LOGGING_PRINTLN("ddgx="<<ddgx);
+    Vector<Differential<ApproximateNumericType>> ddgx = g.evaluate(Differential<ApproximateNumericType>::variables(2, x));
+    LOGGING_PRINTLN("ddgx=" << ddgx);
 
     Vector<ApproximateNumericType> gx = ddgx.value();
-    LOGGING_PRINTLN("g(x)="<<gx);
+    LOGGING_PRINTLN("g(x)=" << gx);
     Matrix<ApproximateNumericType> A = ddgx.jacobian();
-    LOGGING_PRINTLN("Dg(x)="<<A);
+    LOGGING_PRINTLN("Dg(x)=" << A);
 
-    Vector<ApproximateNumericType> yA=transpose(A)*y;
+    Vector<ApproximateNumericType> yA = transpose(A) * y;
 
     // H is the Hessian matrix H of the Lagrangian $L(x,\lambda) = f(x) + \sum_k g_k(x) $
-    Matrix<ApproximateNumericType> YH(x.size(),x.size(),dp);
-    for(SizeType i=0; i!=y.size(); ++i) {
-        YH+=y[i]*ddgx[i].hessian();
+    Matrix<ApproximateNumericType> YH(x.size(), x.size(), dp);
+    for (SizeType i = 0; i != y.size(); ++i) {
+        YH += y[i] * ddgx[i].hessian();
     }
-    LOGGING_PRINTLN("Y.D2g(x)="<<YH);
+    LOGGING_PRINTLN("Y.D2g(x)=" << YH);
 
     // An absent bound contributes no logarithmic barrier term.
     // Avoid taking reciprocals of infinite distances, which can produce NaNs.
-    Vector<ApproximateNumericType> recwu(m,dp),recwl(m,dp);
-    for(SizeType j=0; j!=m; ++j) {
-        if(is_inf(C[j].upper_bound())) { recwu[j]=zero; }
-        else { recwu[j]=rec(cu[j]-w[j]); }
-        if(is_inf(C[j].lower_bound())) { recwl[j]=zero; }
-        else { recwl[j]=rec(w[j]-cl[j]); }
+    Vector<ApproximateNumericType> recwu(m, dp), recwl(m, dp);
+    for (SizeType j = 0; j != m; ++j) {
+        if (is_inf(C[j].upper_bound())) {
+            recwu[j] = zero;
+        } else {
+            recwu[j] = rec(cu[j] - w[j]);
+        }
+        if (is_inf(C[j].lower_bound())) {
+            recwl[j] = zero;
+        } else {
+            recwl[j] = rec(w[j] - cl[j]);
+        }
     }
-    Vector<ApproximateNumericType> recxu=du-x; recxu=erec(recxu);
-    Vector<ApproximateNumericType> recxl=x-dl; recxl=erec(recxl);
+    Vector<ApproximateNumericType> recxu = du - x;
+    recxu = erec(recxu);
+    Vector<ApproximateNumericType> recxl = x - dl;
+    recxl = erec(recxl);
 
-    Vector<ApproximateNumericType> diagDw=esqr(recwu)+esqr(recwl);
-    Matrix<ApproximateNumericType> Dw(m,m,dp); for(SizeType i=0; i!=m; ++i) { Dw[i][i]=diagDw[i]; }
-    DiagonalMatrix<ApproximateNumericType> Dx(esqr(recxu)+esqr(recxl));
+    Vector<ApproximateNumericType> diagDw = esqr(recwu) + esqr(recwl);
+    Matrix<ApproximateNumericType> Dw(m, m, dp);
+    for (SizeType i = 0; i != m; ++i) {
+        Dw[i][i] = diagDw[i];
+    }
+    DiagonalMatrix<ApproximateNumericType> Dx(esqr(recxu) + esqr(recxl));
 
+    for (SizeType i = 0; i != n; ++i) {
+        YH[i][i] -= Dx[i];
+    }
 
-    for(SizeType i=0; i!=n; ++i) { YH[i][i]-=Dx[i]; }
+    Matrix<ApproximateNumericType> AT = transpose(A);
+    Matrix<ApproximateNumericType> Znm(n, m, dp);
+    Matrix<ApproximateNumericType> Zmn(m, n, dp);
+    Matrix<ApproximateNumericType> Zmm(m, m, dp);
+    Matrix<ApproximateNumericType> Im = Matrix<ApproximateNumericType>::identity(m, dp);
 
-    Matrix<ApproximateNumericType> AT=transpose(A);
-    Matrix<ApproximateNumericType> Znm(n,m,dp);
-    Matrix<ApproximateNumericType> Zmn(m,n,dp);
-    Matrix<ApproximateNumericType> Zmm(m,m,dp);
-    Matrix<ApproximateNumericType> Im=Matrix<ApproximateNumericType>::identity(m,dp);
+    Matrix<ApproximateNumericType> S = cojoin(join(Dw, Zmn, Im), join(Znm, -YH, -AT), join(Im, -A, Zmm));
+    Vector<ApproximateNumericType> r = join(recwu - recwl + y, recxu - recxl - yA, w - gx);
 
-
-    Matrix<ApproximateNumericType> S=cojoin(join(Dw,Zmn,Im),join(Znm,-YH,-AT),join(Im,-A,Zmm));
-    Vector<ApproximateNumericType> r=join(recwu-recwl+y,recxu-recxl-yA,w-gx);
-
-    for(SizeType j=0; j!=m; ++j) {
-        if(C[j].lower_bound()==C[j].upper_bound()) {
-            S[j][j]=1;
-            S[j][m+n+j]=0;
-            S[m+n+j][j]=0;
-            r[j]=0;
+    for (SizeType j = 0; j != m; ++j) {
+        if (C[j].lower_bound() == C[j].upper_bound()) {
+            S[j][j] = 1;
+            S[j][m + n + j] = 0;
+            S[m + n + j][j] = 0;
+            r[j] = 0;
         }
     }
 
-    Vector<ApproximateNumericType> swxy = -solve(S,r);
+    Vector<ApproximateNumericType> swxy = -solve(S, r);
 
-    Vector<ApproximateNumericType> sw(m,dp),sx(n,dp),sy(m,dp);
-    sw = project(swxy,range(0,m));
-    sx = project(swxy,range(m,m+n));
-    sy = project(swxy,range(m+n,m+n+m));
+    Vector<ApproximateNumericType> sw(m, dp), sx(n, dp), sy(m, dp);
+    sw = project(swxy, range(0, m));
+    sx = project(swxy, range(m, m + n));
+    sy = project(swxy, range(m + n, m + n + m));
 
-    ApproximateNumericType al=one;
-    ApproximateVectorType nw=w+al*sw;
-    ApproximateVectorType nx=x+al*sx;
-    ApproximateVectorType ny(m,dp);
-    LOGGING_PRINTLN("sx="<<sx);
-    LOGGING_PRINTLN("sw="<<sw);
-    while(!contains(C,exact_vector(nw)) || !contains(D,exact_vector(nx))) {
-        al*=0.75;
-        nw=w+al*sw;
-        nx=x+al*sx;
+    ApproximateNumericType al = one;
+    ApproximateVectorType nw = w + al * sw;
+    ApproximateVectorType nx = x + al * sx;
+    ApproximateVectorType ny(m, dp);
+    LOGGING_PRINTLN("sx=" << sx);
+    LOGGING_PRINTLN("sw=" << sw);
+    while (!contains(C, exact_vector(nw)) || !contains(D, exact_vector(nx))) {
+        al *= 0.75;
+        nw = w + al * sw;
+        nx = x + al * sx;
     }
-    LOGGING_PRINTLN("al="<<sw);
-    ny=y+al*sy;
+    LOGGING_PRINTLN("al=" << sw);
+    ny = y + al * sy;
 
-    w=nw; x=nx; y=ny;
+    w = nw;
+    x = nx;
+    y = ny;
 }
 
-
-
 ValidatedKleenean NonlinearPenaltyFunctionSolver::
-check_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                     ExactFloatDPVectorType x, ExactFloatDPVectorType y) const
-{
-    ARIADNE_PRECONDITION(D.size()==g.argument_size());
-    ARIADNE_PRECONDITION(C.size()==g.result_size());
-    ARIADNE_PRECONDITION(x.size()==D.size());
-    ARIADNE_PRECONDITION(y.size()==C.size());
+    check_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
+                      ExactFloatDPVectorType x, ExactFloatDPVectorType y) const {
+    ARIADNE_PRECONDITION(D.size() == g.argument_size());
+    ARIADNE_PRECONDITION(C.size() == g.result_size());
+    ARIADNE_PRECONDITION(x.size() == D.size());
+    ARIADNE_PRECONDITION(y.size() == C.size());
 
     LOGGING_SCOPE_CREATE;
-    LOGGING_PRINTLN_AT(1,"D="<<D<<" C="<<C);
+    LOGGING_PRINTLN_AT(1, "D=" << D << " C=" << C);
 
-    FloatDPBoundsVector gx=g(x);
-    LOGGING_PRINTLN_AT(1,"x="<<x<<" y="<<y<<" g(x)="<<gx);
+    FloatDPBoundsVector gx = g(x);
+    LOGGING_PRINTLN_AT(1, "x=" << x << " y=" << y << " g(x)=" << gx);
 
     ValidatedKleenean result = true;
 
     List<SizeType> equalities;
-    for(SizeType j=0; j!=C.size(); ++j) {
-        if( definitely(gx[j].upper()<C[j].lower_bound() || gx[j].lower()>C[j].upper_bound()) ) {
+    for (SizeType j = 0; j != C.size(); ++j) {
+        if (definitely(gx[j].upper() < C[j].lower_bound() || gx[j].lower() > C[j].upper_bound())) {
             return false;
         }
-        if(C[j].lower_bound()==C[j].upper_bound()) {
+        if (C[j].lower_bound() == C[j].upper_bound()) {
             equalities.append(j);
         } else {
-            if(!definitely(contains(C[j],gx[j]))) { result = indeterminate; }
+            if (!definitely(contains(C[j], gx[j]))) {
+                result = indeterminate;
+            }
         }
     }
 
-    if(definitely(result)) {
-        if(equalities.empty()) { LOGGING_PRINTLN("Feasible"); return true; }
+    if (definitely(result)) {
+        if (equalities.empty()) {
+            LOGGING_PRINTLN("Feasible");
+            return true;
+        }
 
-        ValidatedVectorMultivariateFunction h(equalities.size(),g.domain());
-        FloatDPBoundsVector c(equalities.size(),dp);
-        for(SizeType i=0; i!=equalities.size(); ++i) {
+        ValidatedVectorMultivariateFunction h(equalities.size(), g.domain());
+        FloatDPBoundsVector c(equalities.size(), dp);
+        for (SizeType i = 0; i != equalities.size(); ++i) {
             h[i] = g[equalities[i]];
             c[i] = C[equalities[i]].lower_bound();
         }
-        LOGGING_PRINTLN_AT(1,"g="<<g);
-        LOGGING_PRINTLN_AT(1,"h="<<h<<" c="<<c<<" h(x)-c="<<(h(x)-c));
+        LOGGING_PRINTLN_AT(1, "g=" << g);
+        LOGGING_PRINTLN_AT(1, "h=" << h << " c=" << c << " h(x)-c=" << (h(x) - c));
 
-        static const ExactDouble SEARCH_TOLERANCE=1e-8_pr;
-        FloatDPBoundsVector W(h.result_size(),FloatDPBounds(-1,+1,dp)*SEARCH_TOLERANCE);
+        static const ExactDouble SEARCH_TOLERANCE = 1e-8_pr;
+        FloatDPBoundsVector W(h.result_size(), FloatDPBounds(-1, +1, dp) * SEARCH_TOLERANCE);
         FloatDPBoundsMatrix AT = transpose(midpoint(h.jacobian(x)));
-        FloatDPBoundsVector B = x+AT*W;
+        FloatDPBoundsVector B = x + AT * W;
         FloatDPBoundsMatrix IA = h.jacobian(B);
-        LOGGING_PRINTLN_AT(1,"AT="<<AT<<" IA="<<IA);
-        LOGGING_PRINTLN_AT(1,"B="<<B);
+        LOGGING_PRINTLN_AT(1, "AT=" << AT << " IA=" << IA);
+        LOGGING_PRINTLN_AT(1, "B=" << B);
 
         // Perform an interval Newton step to try to attain feasibility
-        FloatDPBoundsVector nW = inverse(IA*AT) * FloatDPBoundsVector(h(x)-cast_exact(c));
-        LOGGING_PRINTLN_AT(1,"W="<<W<<"\nnew_W="<<nW);
-        if(definitely(subset(UpperBoxType(B),D)) && refines(nW,W)) { LOGGING_PRINTLN("Feasible"); return true; }
-        else { result=indeterminate; }
+        FloatDPBoundsVector nW = inverse(IA * AT) * FloatDPBoundsVector(h(x) - cast_exact(c));
+        LOGGING_PRINTLN_AT(1, "W=" << W << "\nnew_W=" << nW);
+        if (definitely(subset(UpperBoxType(B), D)) && refines(nW, W)) {
+            LOGGING_PRINTLN("Feasible");
+            return true;
+        } else {
+            result = indeterminate;
+        }
     }
 
     // Compute first-order approximation to g(D) centred at x.
@@ -516,34 +555,35 @@ check_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBo
 
     // Compute y.C
     UpperIntervalVectorType iy(y);
-    UpperIntervalType yC = dot(iy,C);
+    UpperIntervalType yC = dot(iy, C);
 
     // Compute Taylor estimate of y g(X)
-    ValidatedVectorMultivariateTaylorFunctionModelDP tg(D,g,default_sweeper());
-    ValidatedScalarMultivariateTaylorFunctionModelDP tyg(D,default_sweeper());
-    for(SizeType j=0; j!=y.size(); ++j) { tyg += y[j]*tg[j]; }
+    ValidatedVectorMultivariateTaylorFunctionModelDP tg(D, g, default_sweeper());
+    ValidatedScalarMultivariateTaylorFunctionModelDP tyg(D, default_sweeper());
+    for (SizeType j = 0; j != y.size(); ++j) {
+        tyg += y[j] * tg[j];
+    }
     UpperIntervalType tygD = UpperIntervalType(tyg(cast_singleton(D)));
 
-    UpperIntervalMatrixType dgD = jacobian_range(g,cast_vector(D));
+    UpperIntervalMatrixType dgD = jacobian_range(g, cast_vector(D));
     UpperIntervalVectorType ydgD = transpose(dgD) * y;
 
-    FloatDPBounds ygx = dot(y,gx);
+    FloatDPBounds ygx = dot(y, gx);
 
     UpperIntervalType ygD = UpperIntervalType(ygx);
-    for(SizeType i=0; i!=x.size(); ++i) {
-        ygD += ydgD[i] * (D[i]-UpperIntervalType(x[i]));
+    for (SizeType i = 0; i != x.size(); ++i) {
+        ygD += ydgD[i] * (D[i] - UpperIntervalType(x[i]));
     }
 
-    LOGGING_PRINTLN_AT(1,"yC="<<yC<<" tygD="<<tygD<<" ygD="<<ygD);
+    LOGGING_PRINTLN_AT(1, "yC=" << yC << " tygD=" << tygD << " ygD=" << ygD);
 
-    if(definitely(is_empty(intersection(yC,ygD)))) { LOGGING_PRINTLN("Infeasible"); return false; }
-    else { return indeterminate; }
+    if (definitely(is_empty(intersection(yC, ygD)))) {
+        LOGGING_PRINTLN("Infeasible");
+        return false;
+    } else {
+        return indeterminate;
+    }
 }
-
-
-
-
-
 
 /*
 
@@ -679,6 +719,5 @@ feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunct
 
 }
 */
-
 
 } // namespace Ariadne

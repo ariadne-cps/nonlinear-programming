@@ -38,14 +38,13 @@ namespace Ariadne {
 //! \details Introduces variables \f$w\f$ and attempts to find \f$x\in D\f$ and \f$w\in C\f$ such that \f$g(x)=w\f$.
 //!   The dual variables \f$y\f$ are unconstrained Lagrange multipliers for \f$y\cdot(g(x)-w)=0\f$.
 class NonlinearInfeasibleInteriorPointSolver
-    : public NonlinearProgrammingSolverBase
-{
+    : public NonlinearProgrammingSolverBase {
   public:
     /** @brief Allocate a dynamically owned copy of this solver. */
     virtual NonlinearInfeasibleInteriorPointSolver* clone() const { return new NonlinearInfeasibleInteriorPointSolver(*this); }
 
-    using NonlinearProgrammingSolverBase::minimise;
     using NonlinearProgrammingSolverBase::feasible;
+    using NonlinearProgrammingSolverBase::minimise;
 
     /** @brief Hold primal and dual variables for interior-point iterations. */
     struct PrimalDualData;
@@ -62,20 +61,20 @@ class NonlinearInfeasibleInteriorPointSolver
     //! \brief Runs the nonlinear feasibility iteration and returns both its validated status and final numerical candidate.
     //! \details The candidate is heuristic data only. It is guaranteed to lie in \f$D\f$,
     //! but a caller must validate it independently before using it as a certificate.
-    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_candidate(
+    Pair<ValidatedKleenean, FloatDPApproximationVector> feasible_candidate(
         ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const;
 
     //! \brief Run at most maximum_steps iterations of candidate search.
     //! \details A completed iteration does not imply a certificate. When the budget is
     //! exhausted without validated feasibility or infeasibility, the result is indeterminate.
     //! The returned candidate remains heuristic and is guaranteed to lie in D.
-    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_candidate(
+    Pair<ValidatedKleenean, FloatDPApproximationVector> feasible_candidate(
         ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
         SizeType maximum_steps) const;
 
     //! \brief Test if the constraints \f$g(x)\in C\f$ are solvable for \f$x\in D\f$ using a nonlinear feasibility test,
     //! hotstarting the method with the overall primal and dual variables.
-    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C, const PrimalDualData& wxy0) const;
+    Pair<ValidatedKleenean, FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C, const PrimalDualData& wxy0) const;
 
     /** @brief Initialize primal and dual data for feasibility iterations. */
     Void setup_feasibility(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
@@ -83,22 +82,20 @@ class NonlinearInfeasibleInteriorPointSolver
     /** @brief Perform one interior-point iteration. */
     Void step(const ApproximateScalarMultivariateFunction& f, const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
               StepData& stp) const;
-//    FloatDPApproximation compute_mu(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
-//                     FloatDPApproximationVector& w, FloatDPApproximationVector& x, FloatDPApproximationVector& y) const;
+    //    FloatDPApproximation compute_mu(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
+    //                     FloatDPApproximationVector& w, FloatDPApproximationVector& x, FloatDPApproximationVector& y) const;
 };
-
 
 //! \ingroup OptimisationSubModule
 //! Solver for nonlinear programming problems using interior point methods.
 class NonlinearInteriorPointSolver
-    : public NonlinearProgrammingSolverBase
-{
+    : public NonlinearProgrammingSolverBase {
   public:
     /** @brief Allocate a dynamically owned copy of this solver. */
     virtual NonlinearInteriorPointSolver* clone() const { return new NonlinearInteriorPointSolver(*this); }
 
-    using NonlinearProgrammingSolverBase::minimise;
     using NonlinearProgrammingSolverBase::feasible;
+    using NonlinearProgrammingSolverBase::minimise;
 
     //! \brief Compute a \em local optimum of nonlinear programming problem \f$\min f(x) \text{ such that } x\in D \text{ and } g(x)\in C.\f$.
     //! \pre The domain \f$D\f$ is bounded and has nonempty interior, and the codomain \f$C\f$ is nonempty.
@@ -110,13 +107,13 @@ class NonlinearInteriorPointSolver
 
     //! \brief Test if the constraints \f$g(x)\in C\f$ are solvable for \f$x\in D\f$ using a nonlinear feasibility test,
     //! hotstarting the method with the primal \f$x_0\f$ and dual variables \f$y_0\f$ overall constraint violation \f$t_0\f$.
-    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                                                  const FloatDPApproximationVector& x0, const FloatDPApproximationVector& y0, const FloatDPApproximation& t0) const;
+    Pair<ValidatedKleenean, FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
+                                                                            const FloatDPApproximationVector& x0, const FloatDPApproximationVector& y0, const FloatDPApproximation& t0) const;
 
     //! \brief Test if the constraints \f$g(x)\in C\f$ are solvable for \f$x\in D\f$ using a nonlinear feasibility test,
     //! hotstarting the method with the primal variables \f$x_0\f$ and dual variables \f$y_0\f$.
-    Pair<ValidatedKleenean,FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                                                  const FloatDPApproximationVector& x0, const FloatDPApproximationVector& y0) const;
+    Pair<ValidatedKleenean, FloatDPApproximationVector> feasible_hotstarted(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
+                                                                            const FloatDPApproximationVector& x0, const FloatDPApproximationVector& y0) const;
 
     /** @brief Take one nonlinear minimization step. */
     Void minimisation_step(const ApproximateScalarMultivariateFunction& f, const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C, const ApproximateVectorMultivariateFunction& h,
@@ -142,50 +139,44 @@ class NonlinearInteriorPointSolver
                                          const FloatDPApproximationVector& x, FloatDPApproximationVector& lambda) const;
     /** @brief Compute the barrier or centering parameter. */
     FloatDPApproximation compute_mu(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
-                     const FloatDPApproximationVector& x, const FloatDPApproximationVector& lambda) const;
+                                    const FloatDPApproximationVector& x, const FloatDPApproximationVector& lambda) const;
 
   private:
     /** @brief Compute the barrier or centering parameter. */
     FloatDPApproximation compute_mu(const ApproximateScalarMultivariateFunction& f, const ExactBoxType& D, const ValidatedVectorMultivariateFunction& g, const ExactBoxType& C,
-                     const FloatDPApproximationVector& x, const FloatDPApproximationVector& y) const;
+                                    const FloatDPApproximationVector& x, const FloatDPApproximationVector& y) const;
     /** @brief Compute a measure of constraint violation for the current point. */
     Void compute_violation(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
                            FloatDPApproximationVector& x, FloatDPApproximation& t) const;
 };
 
-
-
-
 /** @brief Apply interval techniques to nonlinear zero finding. */
 class IntervalNonlinearInteriorPointSolver
-    : public NonlinearInteriorPointSolver
-{
+    : public NonlinearInteriorPointSolver {
   public:
     virtual IntervalNonlinearInteriorPointSolver* clone() const { return new IntervalNonlinearInteriorPointSolver(*this); }
     //! \brief Test whether h has a zero in the bounded box D with nonempty interior.
     virtual ValidatedKleenean feasible_zero(ExactBoxType D, ValidatedVectorMultivariateFunction h) const;
+
   private:
     /** @brief Perform one iteration of the nonlinear feasibility method. */
     Bool feasibility_step(const FloatDPVector& xl, const FloatDPVector& xu, const ValidatedVectorMultivariateFunction& h,
                           FloatDPBoundsVector& x, FloatDPBoundsVector& y, const FloatDPBounds& mu) const;
 };
 
-
 /** @brief Apply approximate interior-point steps to nonlinear zero finding. */
 class ApproximateNonlinearInteriorPointSolver
-    : public NonlinearInteriorPointSolver
-{
+    : public NonlinearInteriorPointSolver {
   public:
     virtual ApproximateNonlinearInteriorPointSolver* clone() const { return new ApproximateNonlinearInteriorPointSolver(*this); }
     //! \brief Test whether h has a zero in the bounded box D with nonempty interior.
     virtual ValidatedKleenean feasible_zero(ExactBoxType D, ValidatedVectorMultivariateFunction h) const;
+
   private:
     /** @brief Perform one iteration of the nonlinear feasibility method. */
     Void feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& h,
                           FloatDPApproximationVector& X, FloatDPApproximationVector& Lambda) const;
 };
-
-
 
 } // namespace Ariadne
 

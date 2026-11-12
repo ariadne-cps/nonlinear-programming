@@ -29,46 +29,51 @@
 #ifndef ARIADNE_NONLINEAR_PROGRAMMING_HPP
 #define ARIADNE_NONLINEAR_PROGRAMMING_HPP
 
-#include "numeric/declarations.hpp"
 #include "algebra/declarations.hpp"
 #include "function/declarations.hpp"
 #include "geometry/declarations.hpp"
-
 #include "logging/logging.hpp"
+#include "numeric/declarations.hpp"
 #include "numeric/numeric.hpp"
 #include "utility/tuple.hpp"
 
-
 namespace Ariadne {
 
-template<class X, class R> class Constraint;
+template<class X, class R>
+class Constraint;
 
 /** @brief Report that constraints cannot be satisfied. */
 class InfeasibleProblemException : public std::runtime_error {
-  public: InfeasibleProblemException() : std::runtime_error("InfeasibleProblemException") { }
+  public:
+    InfeasibleProblemException() : std::runtime_error("InfeasibleProblemException") {}
 };
 /** @brief Report that feasibility could not be determined. */
 class IndeterminateFeasibilityException : public std::runtime_error {
-  public: IndeterminateFeasibilityException() : std::runtime_error("IndeterminateFeasibilityException") { }
+  public:
+    IndeterminateFeasibilityException() : std::runtime_error("IndeterminateFeasibilityException") {}
 };
 /** @brief Report degeneracy during nonlinear feasibility testing. */
 class DegenerateNonlinearFeasibilityProblemException : public std::runtime_error {
-  public: DegenerateNonlinearFeasibilityProblemException() : std::runtime_error("DegenerateNonlinearFeasibilityProblemException") { }
+  public:
+    DegenerateNonlinearFeasibilityProblemException() : std::runtime_error("DegenerateNonlinearFeasibilityProblemException") {}
 };
 /** @brief Report numerical proximity to the feasible domain boundary. */
 class NearBoundaryOfFeasibleDomainException : public std::runtime_error {
-  public: NearBoundaryOfFeasibleDomainException() : std::runtime_error("NearBoundaryOfFeasibleDomainException") { }
+  public:
+    NearBoundaryOfFeasibleDomainException() : std::runtime_error("NearBoundaryOfFeasibleDomainException") {}
 };
 
 //! \ingroup OptimisationSubModule EvaluationModule
 //! Interface for nonlinear programming solvers.
 class NonlinearProgrammingSolverInterface {
-    using FLT=FloatDP;
+    using FLT = FloatDP;
+
   public:
     typedef Bounds<FLT> ValidatedNumericType;
     typedef Vector<FLT> ExactVectorType;
     typedef Vector<Bounds<FLT>> ValidatedVectorType;
     typedef Vector<Approximation<FLT>> ApproximateVectorType;
+
   public:
     //! \brief Virtual destructor.
     virtual ~NonlinearProgrammingSolverInterface() = default;
@@ -100,10 +105,10 @@ class NonlinearProgrammingSolverInterface {
                                       ExactVectorType x, ExactVectorType y) const = 0;
     //! \brief Tests if the feasibility problem is definitely unsolvable, using multipliers \a y and local centering point \a x.
     virtual Bool validate_infeasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                                      ExactVectorType x, ExactVectorType y) const = 0;
+                                        ExactVectorType x, ExactVectorType y) const = 0;
     //! \brief Tests if the box \a X definitely containss a feasible point.
     virtual ValidatedKleenean contains_feasible_point(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                                            FloatDPBoundsVector X) const = 0;
+                                                      FloatDPBoundsVector X) const = 0;
     //! \brief Tests if the Lagrange multipliers \a y are a certificate of infeasiblity.
     virtual Bool is_infeasibility_certificate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                               ExactVectorType y) const = 0;
@@ -112,11 +117,11 @@ class NonlinearProgrammingSolverInterface {
 //! \ingroup OptimisationSubModule
 //! Common routines for nonlinear minimisation
 class NonlinearProgrammingSolverBase
-    : public NonlinearProgrammingSolverInterface
-{
+    : public NonlinearProgrammingSolverInterface {
   protected:
     static const FloatDP zero;
     static const FloatDP one;
+
   public:
     /** @brief Compute a constrained local minimizer using this solver. */
     virtual Vector<ValidatedNumericType> minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const = 0;
@@ -145,7 +150,7 @@ class NonlinearProgrammingSolverBase
                                         ExactVectorType x, ExactVectorType y) const;
     /** @brief Test whether an enclosing box contains a feasible point. */
     virtual ValidatedKleenean contains_feasible_point(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
-                                            ValidatedVectorType X) const;
+                                                      ValidatedVectorType X) const;
     /** @brief Check a proposed infeasibility certificate. */
     virtual Bool is_infeasibility_certificate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                               ExactVectorType lambda) const;

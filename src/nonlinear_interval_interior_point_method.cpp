@@ -38,40 +38,43 @@ using namespace Detail;
 
 // Solve equations y Dh(x) - 1/(x-xl) + 1/(xu-x) = 0; h(x) = 0
 ValidatedKleenean IntervalNonlinearInteriorPointSolver::
-feasible_zero(ExactBoxType D, ValidatedVectorMultivariateFunction h) const
-{
-    ARIADNE_PRECONDITION(h.argument_size()==D.size());
+    feasible_zero(ExactBoxType D, ValidatedVectorMultivariateFunction h) const {
+    ARIADNE_PRECONDITION(h.argument_size() == D.size());
     LOGGING_SCOPE_CREATE;
-    LOGGING_PRINTLN("D="<<D<<", h="<<h);
+    LOGGING_PRINTLN("D=" << D << ", h=" << h);
 
     ARIADNE_PRECONDITION(D.is_bounded());
-    const SizeType n=D.size();
-    for(SizeType j=0; j!=n; ++j) {
-        ARIADNE_PRECONDITION(D[j].lower_bound()<D[j].upper_bound());
+    const SizeType n = D.size();
+    for (SizeType j = 0; j != n; ++j) {
+        ARIADNE_PRECONDITION(D[j].lower_bound() < D[j].upper_bound());
     }
-    const ExactBoxType zero_box(h.result_size(),ExactIntervalType(0,0));
-    const ExactFloatDPVectorType centre=midpoint(D);
+    const ExactBoxType zero_box(h.result_size(), ExactIntervalType(0, 0));
+    const ExactFloatDPVectorType centre = midpoint(D);
     // This also handles vacuous equalities and zero-dimensional domains.
-    if(this->is_feasible_point(D,h,zero_box,centre)) { return true; }
-    if(n==0u) { return indeterminate; }
+    if (this->is_feasible_point(D, h, zero_box, centre)) {
+        return true;
+    }
+    if (n == 0u) {
+        return indeterminate;
+    }
 
-    const ExactFloatDPVectorType xl=lower_bounds(D);
-    const ExactFloatDPVectorType xu=upper_bounds(D);
+    const ExactFloatDPVectorType xl = lower_bounds(D);
+    const ExactFloatDPVectorType xu = upper_bounds(D);
     // A local search box avoids the barrier poles at D's endpoints.
     // It need not contain every zero in D: failure here is indeterminate.
-    FloatDPBoundsVector x=(cast_singleton(D)+centre)*0.5_exact;
-    FloatDPBoundsVector y(h.result_size(),FloatDPBounds(-1,+1,dp));
+    FloatDPBoundsVector x = (cast_singleton(D) + centre) * 0.5_exact;
+    FloatDPBoundsVector y(h.result_size(), FloatDPBounds(-1, +1, dp));
     // mu is a fixed positive barrier parameter, not an unknown constrained
     // by ||y||^2. Including zero made the initial Hessian enclosure
     // contain a singular matrix even for regular equality problems.
-    const FloatDPBounds mu(1,dp);
+    const FloatDPBounds mu(1, dp);
 
-    for(SizeType i=0; i!=8; ++i) {
+    for (SizeType i = 0; i != 8; ++i) {
         try {
-            if(!this->feasibility_step(xl,xu,h,x,y,mu)) {
+            if (!this->feasibility_step(xl, xu, h, x, y, mu)) {
                 return indeterminate;
             }
-        } catch(const SingularMatrixException&) {
+        } catch (const SingularMatrixException&) {
             // An interval enclosure containing a singular matrix cannot
             // provide a Newton correction. This is failure to certify,
             // not evidence that the equality problem is infeasible.
@@ -83,79 +86,88 @@ feasible_zero(ExactBoxType D, ValidatedVectorMultivariateFunction h) const
     // The local Newton search is not itself a feasibility certificate.
     // Check an exact point first (including singleton contractions), then
     // ask the existing validated inclusion test to certify the enclosure.
-    const ExactFloatDPVectorType candidate=midpoint(x);
-    if(this->is_feasible_point(D,h,zero_box,candidate)) { return true; }
-    if(definitely(this->contains_feasible_point(D,h,zero_box,x))) { return true; }
+    const ExactFloatDPVectorType candidate = midpoint(x);
+    if (this->is_feasible_point(D, h, zero_box, candidate)) {
+        return true;
+    }
+    if (definitely(this->contains_feasible_point(D, h, zero_box, x))) {
+        return true;
+    }
     return indeterminate;
 }
 
 Bool IntervalNonlinearInteriorPointSolver::
-feasibility_step(const ExactFloatDPVectorType& xl, const ExactFloatDPVectorType& xu, const ValidatedVectorMultivariateFunction& h,
-                 FloatDPBoundsVector& x, FloatDPBoundsVector& y, const FloatDPBounds& mu) const
-{
+    feasibility_step(const ExactFloatDPVectorType& xl, const ExactFloatDPVectorType& xu, const ValidatedVectorMultivariateFunction& h,
+                     FloatDPBoundsVector& x, FloatDPBoundsVector& y, const FloatDPBounds& mu) const {
     LOGGING_SCOPE_CREATE;
-    LOGGING_PRINTLN("[x]="<<x<<" [lambda]="<<y<<" [mu]="<<mu);
+    LOGGING_PRINTLN("[x]=" << x << " [lambda]=" << y << " [mu]=" << mu);
 
-    const SizeType n=x.size();
-    const SizeType m=y.size();
+    const SizeType n = x.size();
+    const SizeType m = y.size();
 
-    FloatDPBoundsVector mx=midpoint(x);
-    FloatDPBoundsVector my=midpoint(y);
+    FloatDPBoundsVector mx = midpoint(x);
+    FloatDPBoundsVector my = midpoint(y);
 
-    LOGGING_PRINTLN_AT(1,"x~"<<x<<" lambda~="<<y<<", mu~"<<mu);
+    LOGGING_PRINTLN_AT(1, "x~" << x << " lambda~=" << y << ", mu~" << mu);
 
     // Fixed-barrier KKT equations: Dh(x)^T y - mu/(x-xl) + mu/(xu-x) = 0; h(x) = 0.
-    Vector<FloatDPBoundsDifferential> ddhx=h.evaluate(FloatDPBoundsDifferential::variables(2,x));
-    Vector<FloatDPBoundsDifferential> dhmx=h.evaluate(FloatDPBoundsDifferential::variables(1,mx));
+    Vector<FloatDPBoundsDifferential> ddhx = h.evaluate(FloatDPBoundsDifferential::variables(2, x));
+    Vector<FloatDPBoundsDifferential> dhmx = h.evaluate(FloatDPBoundsDifferential::variables(1, mx));
     FloatDPBoundsMatrix A = ddhx.jacobian();
     FloatDPBoundsMatrix mA = dhmx.jacobian();
-    LOGGING_PRINTLN_AT(1,"A="<<A<<" b="<<ddhx.value());
+    LOGGING_PRINTLN_AT(1, "A=" << A << " b=" << ddhx.value());
 
     FloatDPBoundsVector rx = transpose(mA) * my;
-    for(SizeType j=0; j!=n; ++j) {
-        rx[j] -= mu*rec(mx[j]-xl[j]);
-        rx[j] += mu*rec(xu[j]-mx[j]);
+    for (SizeType j = 0; j != n; ++j) {
+        rx[j] -= mu * rec(mx[j] - xl[j]);
+        rx[j] += mu * rec(xu[j] - mx[j]);
     }
     FloatDPBoundsVector ry = dhmx.value();
-    LOGGING_PRINTLN("rx="<<rx<<" ry="<<ry);
+    LOGGING_PRINTLN("rx=" << rx << " ry=" << ry);
 
-    FloatDPBoundsMatrix H(n,n,dp);
-    for(SizeType i=0; i!=m; ++i) { H += y[i] * ddhx[i].hessian(); }
-    for(SizeType j=0; j!=n; ++j) {
-        H[j][j] += mu*rec(sqr(x[j]-xl[j]));
-        H[j][j] += mu*rec(sqr(xu[j]-x[j]));
+    FloatDPBoundsMatrix H(n, n, dp);
+    for (SizeType i = 0; i != m; ++i) {
+        H += y[i] * ddhx[i].hessian();
+    }
+    for (SizeType j = 0; j != n; ++j) {
+        H[j][j] += mu * rec(sqr(x[j] - xl[j]));
+        H[j][j] += mu * rec(sqr(xu[j] - x[j]));
     }
 
     // S = A Hinv AT
     // H dx + AT dy = rx; A dx = ry;
     //  dx = Hinv ( rx - AT dy )
     //  dy = Sinv ( A Hinv rx - ry )
-    FloatDPBoundsMatrix Hinv=inverse(H);
-    LOGGING_PRINTLN_AT(1,"H="<<H<<" Hinv="<<Hinv);
-    FloatDPBoundsMatrix S=A*Hinv*transpose(A);
-    FloatDPBoundsMatrix Sinv=inverse(S);
-    LOGGING_PRINTLN_AT(1,"S="<<S<<" Sinv="<<Sinv);
-    FloatDPBoundsVector dy = Sinv * ( A*(Hinv*rx) - ry );
-    FloatDPBoundsVector dx = Hinv * ( rx - transpose(A) * dy);
-    LOGGING_PRINTLN("dx="<<dx<<" dy="<<dy);
+    FloatDPBoundsMatrix Hinv = inverse(H);
+    LOGGING_PRINTLN_AT(1, "H=" << H << " Hinv=" << Hinv);
+    FloatDPBoundsMatrix S = A * Hinv * transpose(A);
+    FloatDPBoundsMatrix Sinv = inverse(S);
+    LOGGING_PRINTLN_AT(1, "S=" << S << " Sinv=" << Sinv);
+    FloatDPBoundsVector dy = Sinv * (A * (Hinv * rx) - ry);
+    FloatDPBoundsVector dx = Hinv * (rx - transpose(A) * dy);
+    LOGGING_PRINTLN("dx=" << dx << " dy=" << dy);
 
     // Interval Newton is centred at (mx,my), where the residuals were
     // evaluated. Subtracting from the whole old boxes retains their width.
-    FloatDPBoundsVector nx = mx-dx;
-    FloatDPBoundsVector ny = my-dy;
-    LOGGING_PRINTLN("nx="<<nx<<" ny="<<ny);
-    LOGGING_PRINTLN_AT(1,"h(x)="<<h(nx));
+    FloatDPBoundsVector nx = mx - dx;
+    FloatDPBoundsVector ny = my - dy;
+    LOGGING_PRINTLN("nx=" << nx << " ny=" << ny);
+    LOGGING_PRINTLN_AT(1, "h(x)=" << h(nx));
 
     // Reject an empty local KKT contraction before constructing Bounds
     // with inconsistent endpoints. This says nothing about zeros elsewhere.
-    for(SizeType j=0; j!=n; ++j) {
-        if(inconsistent(x[j],nx[j])) { return false; }
+    for (SizeType j = 0; j != n; ++j) {
+        if (inconsistent(x[j], nx[j])) {
+            return false;
+        }
     }
-    for(SizeType i=0; i!=m; ++i) {
-        if(inconsistent(y[i],ny[i])) { return false; }
+    for (SizeType i = 0; i != m; ++i) {
+        if (inconsistent(y[i], ny[i])) {
+            return false;
+        }
     }
-    x=refinement(x,nx);
-    y=refinement(y,ny);
+    x = refinement(x, nx);
+    y = refinement(y, ny);
     return true;
 }
 
@@ -718,6 +730,5 @@ Void KrawczykOptimiser::feasibility_step(const ExactBoxType& d, const ValidatedV
 }
 
 */
-
 
 } // namespace Ariadne

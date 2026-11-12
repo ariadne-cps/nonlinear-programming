@@ -28,13 +28,15 @@
 
 #include <iostream>
 #include <string>
+
 #include "ariadne-nonlinear-programming.hpp"
 using namespace Ariadne;
 using std::cout;
 namespace {
 void section(const std::string& title) { cout << "\n== " << title << " ==\n"; }
-template<class T> void show(const std::string& label, const T& value) { cout << label << ": " << value << "\n"; }
-}
+template<class T>
+void show(const std::string& label, const T& value) { cout << label << ": " << value << "\n"; }
+} // namespace
 int main() {
     section("Nonlinear constrained optimisation");
 
@@ -48,9 +50,7 @@ int main() {
     auto q = EffectiveScalarMultivariateFunction::coordinates(2);
     EffectiveScalarMultivariateFunction objective_function =
         sqr(q[0] - 0.625_x) + sqr(q[1] - 0.375_x);
-    EffectiveVectorMultivariateFunction band_constraint({
-        q[0] + q[1]
-    });
+    EffectiveVectorMultivariateFunction band_constraint({q[0] + q[1]});
     ExactBoxType optimisation_domain({
         {0.0_x, 1.0_x},
         {0.0_x, 1.0_x}
@@ -69,13 +69,17 @@ int main() {
     show("validated local optimum", optimum);
     show("constraint at optimum", band_constraint(optimum));
 
-
     section("Validated nonlinear feasibility");
     NonlinearInfeasibleInteriorPointSolver feasibility_solver;
     auto x = ValidatedScalarMultivariateFunction::coordinates(2);
-    ValidatedVectorMultivariateFunction equality({2*x[0]-x[1]+x[0]*x[1]/8});
-    ExactBoxType domain({{0.0_x,2.0_x},{0.0_x,2.0_x}});
-    ExactBoxType zero({{0.0_x,0.0_x}});
-    show("Certified feasible", feasibility_solver.feasible(domain,equality,zero));
+    ValidatedVectorMultivariateFunction equality({2 * x[0] - x[1] + x[0] * x[1] / 8});
+    ExactBoxType domain({
+        {0.0_x, 2.0_x},
+        {0.0_x, 2.0_x}
+    });
+    ExactBoxType zero({
+        {0.0_x, 0.0_x}
+    });
+    show("Certified feasible", feasibility_solver.feasible(domain, equality, zero));
     return 0;
 }
