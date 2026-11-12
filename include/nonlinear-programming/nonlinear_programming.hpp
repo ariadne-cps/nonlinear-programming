@@ -6,24 +6,24 @@
  ****************************************************************************/
 
 /*
- *  This file is part of Ariadne.
+ *  This file is part of Ariadne Nonlinear Programming.
  *
- *  Ariadne is free software: you can redistribute it and/or modify
+ *  Ariadne Nonlinear Programming is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  Ariadne is distributed in the hope that it will be useful,
+ *  Ariadne Nonlinear Programming is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with Ariadne.  If not, see <https://www.gnu.org/licenses/>.
+ *  along with Ariadne Nonlinear Programming. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*! \file nonlinear-programming/nonlinear_programming.hpp
- *  \brief Nonlinear programming.
+/** @file nonlinear-programming/nonlinear_programming.hpp
+ *  @brief Shared solver interfaces, validation operations and failure types.
  */
 
 #ifndef ARIADNE_NONLINEAR_PROGRAMMING_HPP
@@ -43,15 +43,19 @@ namespace Ariadne {
 
 template<class X, class R> class Constraint;
 
+/** @brief Report that constraints cannot be satisfied. */
 class InfeasibleProblemException : public std::runtime_error {
   public: InfeasibleProblemException() : std::runtime_error("InfeasibleProblemException") { }
 };
+/** @brief Report that feasibility could not be determined. */
 class IndeterminateFeasibilityException : public std::runtime_error {
   public: IndeterminateFeasibilityException() : std::runtime_error("IndeterminateFeasibilityException") { }
 };
+/** @brief Report degeneracy during nonlinear feasibility testing. */
 class DegenerateNonlinearFeasibilityProblemException : public std::runtime_error {
   public: DegenerateNonlinearFeasibilityProblemException() : std::runtime_error("DegenerateNonlinearFeasibilityProblemException") { }
 };
+/** @brief Report numerical proximity to the feasible domain boundary. */
 class NearBoundaryOfFeasibleDomainException : public std::runtime_error {
   public: NearBoundaryOfFeasibleDomainException() : std::runtime_error("NearBoundaryOfFeasibleDomainException") { }
 };
@@ -114,24 +118,35 @@ class NonlinearProgrammingSolverBase
     static const FloatDP zero;
     static const FloatDP one;
   public:
+    /** @brief Compute a constrained local minimizer using this solver. */
     virtual Vector<ValidatedNumericType> minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const = 0;
+    /** @brief Compute a constrained local minimizer using this solver. */
     virtual Vector<ValidatedNumericType> minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D, ValidatedVectorMultivariateFunction g, ValidatedVectorMultivariateFunction h) const;
 
+    /** @brief Determine feasibility of the nonlinear constraints. */
     virtual ValidatedKleenean feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const = 0;
+    /** @brief Determine feasibility of the nonlinear constraints. */
     virtual ValidatedKleenean feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ValidatedVectorMultivariateFunction h) const;
 
+    /** @brief Check approximate satisfaction of constraints. */
     virtual Bool almost_feasible_point(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                        ApproximateVectorType x, FloatDPApproximation error) const;
+    /** @brief Check whether a point satisfies the constraints. */
     virtual Bool is_feasible_point(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                    ExactVectorType x) const;
+    /** @brief Validate the given candidate feasibility witness. */
     virtual Bool validate_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                       ExactVectorType x) const;
+    /** @brief Validate the given candidate feasibility witness. */
     virtual Bool validate_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                       ExactVectorType x, ExactVectorType y) const;
+    /** @brief Validate an infeasibility witness. */
     virtual Bool validate_infeasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                         ExactVectorType x, ExactVectorType y) const;
+    /** @brief Test whether an enclosing box contains a feasible point. */
     virtual ValidatedKleenean contains_feasible_point(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                             ValidatedVectorType X) const;
+    /** @brief Check a proposed infeasibility certificate. */
     virtual Bool is_infeasibility_certificate(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C,
                                               ExactVectorType lambda) const;
 };

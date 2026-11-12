@@ -6,24 +6,24 @@
  ****************************************************************************/
 
 /*
- *  This file is part of Ariadne.
+ *  This file is part of Ariadne Nonlinear Programming.
  *
- *  Ariadne is free software: you can redistribute it and/or modify
+ *  Ariadne Nonlinear Programming is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  Ariadne is distributed in the hope that it will be useful,
+ *  Ariadne Nonlinear Programming is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with Ariadne.  If not, see <https://www.gnu.org/licenses/>.
+ *  along with Ariadne Nonlinear Programming. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*! \file nonlinear-programming/nonlinear_penalty_function_method.hpp
- *  \brief Penalty-function methods for nonlinear programming.
+/** @file nonlinear-programming/nonlinear_penalty_function_method.hpp
+ *  @brief Penalty methods for constrained nonlinear feasibility.
  */
 
 #ifndef ARIADNE_NONLINEAR_PENALTY_FUNCTION_METHOD_HPP
@@ -47,14 +47,21 @@ class NonlinearPenaltyFunctionSolver
     using NonlinearProgrammingSolverBase::minimise;
     using NonlinearProgrammingSolverBase::feasible;
   public:
+    /** @brief Allocate a dynamically owned copy of this solver. */
     virtual NonlinearPenaltyFunctionSolver* clone() const;
+    /** @brief Check the supplied point and multipliers against the constraints. */
     virtual ValidatedKleenean check_feasibility(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C, ExactVectorType x, ExactVectorType y) const;
+    /** @brief Compute a constrained local minimizer using this solver. */
     virtual Vector<ValidatedNumericType> minimise(ValidatedScalarMultivariateFunction f, ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const;
+    /** @brief Determine feasibility of the nonlinear constraints. */
     virtual ValidatedKleenean feasible(ExactBoxType D, ValidatedVectorMultivariateFunction g, ExactBoxType C) const;
+    /** @brief Perform one iteration of the nonlinear feasibility method. */
     virtual Void feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
                                   FloatDPApproximationVector& x, FloatDPApproximationVector& w, FloatDPApproximation& mu) const;
+    /** @brief Perform one iteration of the nonlinear feasibility method. */
     virtual Void feasibility_step(const ExactBoxType& D, const ValidatedVectorMultivariateFunction& g, const ExactBoxType& C,
                                   FloatDPBoundsVector& x, FloatDPBoundsVector& w) const;
+    /** @brief Perform one iteration of the nonlinear feasibility method. */
     virtual Void feasibility_step(const ExactBoxType& D, const ApproximateVectorMultivariateFunction& g, const ExactBoxType& C,
                                   FloatDPApproximationVector& x, FloatDPApproximationVector& y, FloatDPApproximationVector& z) const;
 };

@@ -6,22 +6,25 @@
  ****************************************************************************/
 
 /*
- *  This file is part of Ariadne.
+ *  This file is part of Ariadne Nonlinear Programming.
  *
- *  Ariadne is free software: you can redistribute it and/or modify
+ *  Ariadne Nonlinear Programming is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  Ariadne is distributed in the hope that it will be useful,
+ *  Ariadne Nonlinear Programming is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with Ariadne.  If not, see <https://www.gnu.org/licenses/>.
+ *  along with Ariadne Nonlinear Programming. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/** @file nonlinear-programming/nonlinear_programming.tpl.hpp
+ *  @brief Template helpers for nonlinear feasibility and Newton computations.
+ */
 
 #ifndef ARIADNE_NONLINEAR_PROGRAMMING_TPL_HPP
 #define ARIADNE_NONLINEAR_PROGRAMMING_TPL_HPP
@@ -105,61 +108,73 @@ DiagonalMatrix<X> diagonal_matrix(const Vector<X>& v) {
     return DiagonalMatrix<X>(v.array());
 }
 
+/** @brief Test whether every vector component is positive. */
 template<class X> inline
 Bool epos(const Vector<X>& x) {
     for(SizeType i=0; i!=x.size(); ++i) { if(x[i]<=0) { return false; } } return true;
 }
 
+/** @brief Test whether every vector component is negative. */
 template<class X> inline
 Bool eneg(const Vector<X>& x) {
     for(SizeType i=0; i!=x.size(); ++i) { if(x[i]>=0) { return false; } } return true;
 }
 
+/** @brief Test componentwise lower bounds on a vector. */
 template<class X, class XX> inline
 Bool egtr(const Vector<X>& x, const XX& s) {
     for(SizeType i=0; i!=x.size(); ++i) { if(decide(x[i]<=s)) { return false; } } return true;
 }
 
+/** @brief Test componentwise upper bounds on a vector. */
 template<class X, class XX> inline
 Bool elss(const Vector<X>& x, const XX& s) {
     for(SizeType i=0; i!=x.size(); ++i) { if(decide(x[i]>=s)) { return false; } } return true;
 }
 
+/** @brief Add two vectors componentwise. */
 template<class X> inline
 Vector<X> eadd(const Vector<X>& x, const Vector<X>& y) {
     Vector<X> r(x.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=x[i]+y[i]; } return r;
 }
 
+/** @brief Subtract vectors or a scalar componentwise. */
 template<class X> inline
 Vector<X> esub(const Vector<X>& x, const X& s) {
     Vector<X> r(x.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=x[i]-s; } return r;
 }
 
+/** @brief Subtract vectors or a scalar componentwise. */
 template<class X> inline
 Vector<X> esub(const Vector<X>& x, const Vector<X>& y) {
     Vector<X> r(x.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=x[i]-y[i]; } return r;
 }
 
+/** @brief Multiply vectors componentwise. */
 template<class X> inline
 Vector<X> emul(const Vector<X>& x, const Vector<X>& z) {
     Vector<X> r(x.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=x[i]*z[i]; } return r;
 }
 
+/** @brief Divide by a vector componentwise. */
 template<class X, class XX> inline
 Vector<X> ediv(const Vector<X>& x, const Vector<XX>& z) {
     Vector<X> r(x.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=x[i]/z[i]; } return r;
 }
 
+/** @brief Divide by a vector componentwise. */
 template<class X> inline
 Vector<X> ediv(const X& s, const Vector<X>& z) {
     Vector<X> r(z.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=s/z[i]; } return r;
 }
 
+/** @brief Compute reciprocal vector components. */
 template<class X> inline
 Vector<X> erec(const Vector<X>& z) {
     Vector<X> r(z.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=rec(z[i]); } return r;
 }
 
+/** @brief Square vector components. */
 template<class X> inline
 Vector<X> esqr(const Vector<X>& z) {
     Vector<X> r(z.size(),dp); for(SizeType i=0; i!=r.size(); ++i) { r[i]=sqr(z[i]); } return r;
@@ -180,6 +195,7 @@ inline Matrix<ApproximateNumericType> join(Matrix<ApproximateNumericType> const&
     return A123;
 }
 
+/** @brief Join multiple matrices vertically. */
 template<class X> Matrix<X> cojoin(Matrix<X> const& A1, Matrix<X> const& A2, Matrix<X> const& A3) {
     SizeType n=A1.column_size(); SizeType m1=A1.row_size(); SizeType m2=A2.row_size(); SizeType m3=A3.row_size();
     Matrix<X> A123(m1+m2+m3,n,(A1.zero_element()+A2.zero_element()+A3.zero_element()));
@@ -191,6 +207,7 @@ template<class X> Matrix<X> cojoin(Matrix<X> const& A1, Matrix<X> const& A2, Mat
 
 
 // Compute S+=ADA^T, where D is diagonal and S is symmetric.
+/** @brief Form a weighted matrix product involving a diagonal matrix. */
 template<class X>
 Void adat(Matrix<X>& S, const Matrix<X>& A, const Vector<X>& D)
 {
@@ -212,6 +229,7 @@ Void adat(Matrix<X>& S, const Matrix<X>& A, const Vector<X>& D)
 }
 
 // Compute S+=A^TDA, where D is diagonal and S is symmetric.
+/** @brief Form a transpose-weighted matrix product. */
 template<class X>
 Void atda(Matrix<X>& S, const Matrix<X>& A, const Vector<X>& D)
 {
@@ -237,6 +255,7 @@ Void atda(Matrix<X>& S, const Matrix<X>& A, const Vector<X>& D)
 }
 
 // Compute S+=A^TDA, where D is diagonal and S is symmetric.
+/** @brief Form a transpose-weighted matrix product. */
 template<class X>
 Void atda(Matrix<X>& S, const Matrix<X>& A, const DiagonalMatrix<X>& D)
 {
@@ -244,6 +263,7 @@ Void atda(Matrix<X>& S, const Matrix<X>& A, const DiagonalMatrix<X>& D)
 }
 
 // Compute S=ADA^T, where D is diagonal.
+/** @brief Form a weighted matrix product involving a diagonal matrix. */
 template<class X>
 Matrix<X> adat(const Matrix<X>& A, const Vector<X>& D)
 {
@@ -254,6 +274,7 @@ Matrix<X> adat(const Matrix<X>& A, const Vector<X>& D)
 }
 
 // Compute S+=AA^T
+/** @brief Form a matrix product with its transpose. */
 template<class X>
 Matrix<X> amulat(const Matrix<X>& A)
 {
@@ -275,6 +296,7 @@ Matrix<X> amulat(const Matrix<X>& A)
     return S;
 }
 
+/** @brief Check that each vector component exceeds a threshold. */
 template<class X> inline Bool all_greater(const Vector<X>& x, const X& e) {
     for(SizeType i=0; i!=x.size(); ++i) { if(x[i]<=e) { return false; } } return true;
 }
@@ -284,11 +306,13 @@ template<class X> inline Bool all_greater(const Vector<X>& x, const X& e) {
 
 
 
+/** @brief Construct second-order differential data for the specified function. */
 template<class X> Vector< Differential<X> > second_derivative(const ValidatedVectorMultivariateFunction& f, const Vector<X>& x) {
     Vector< Differential<X> > d=Differential<X>::variables(f.result_size(),f.argument_size(),2,x);
     return f.evaluate(d);
 }
 
+/** @brief Extract the gradient of a differential. */
 template<class Vec, class Diff> Void set_gradient(Vec& g, const Diff& D) {
     SizeType i=0;
     typename Diff::ConstIterator iter=D.begin();
@@ -300,6 +324,7 @@ template<class Vec, class Diff> Void set_gradient(Vec& g, const Diff& D) {
     }
 }
 
+/** @brief Extract the transposed Jacobian from differentials. */
 template<class Mx, class Diff> Void set_jacobian_transpose(Mx& A, const Vector<Diff>& D) {
     for(SizeType j=0; j!=A.column_size(); ++j) {
         for(SizeType i=0; i!=A.row_size(); ++i) {
@@ -308,6 +333,7 @@ template<class Mx, class Diff> Void set_jacobian_transpose(Mx& A, const Vector<D
     }
 }
 
+/** @brief Extract a Hessian from a differential. */
 template<class Mx, class Diff> Void set_hessian(Mx& H, const Diff& D) {
     typedef typename Diff::ValueType X;
     SizeType i=0; SizeType j=1;
@@ -323,6 +349,7 @@ template<class Mx, class Diff> Void set_hessian(Mx& H, const Diff& D) {
     }
 }
 
+/** @brief Accumulate a scaled Hessian contribution. */
 template<class Mx, class S, class Diff> Void add_hessian(Mx& H, const S& s, const Diff& D) {
     typedef typename Diff::ValueType X;
     typename Diff::ConstIterator iter=D.begin();
@@ -339,6 +366,7 @@ template<class Mx, class S, class Diff> Void add_hessian(Mx& H, const S& s, cons
 }
 
 // Compute the product (A -A I -I ; 1 1 1 1) v
+/** @brief Multiply by the structured feasibility matrix. */
 template<class X, class XX> Vector<X> feasibility_mul(const Matrix<XX>& A, const Vector<X>& v)
 {
     const SizeType m=A.row_size();
@@ -358,6 +386,7 @@ template<class X, class XX> Vector<X> feasibility_mul(const Matrix<XX>& A, const
 }
 
 // Compute the product (AT 1 \\ -AT 1 \\ I 1 \\ -I 1) I -I ; 1 1 1 1) v
+/** @brief Multiply by the transpose of the feasibility matrix. */
 template<class X, class XX> Vector<X> feasibility_trmul(const Matrix<XX>& A, const Vector<X>& w)
 {
     const SizeType m=A.row_size();
@@ -382,6 +411,7 @@ template<class X, class XX> Vector<X> feasibility_trmul(const Matrix<XX>& A, con
 
 
 // Compute the product \f$\hat{A}^T \hat{D} \hat{A} + \hat{H}\f$ where \f$\hat{A}=\left(\begin{matrix}A&-A&I&-I\\1&1&1&1\end{matrix}\right)\f$ and \f$\hat{D}=D\f$ is diagonal.
+/** @brief Form the weighted structured feasibility matrix. */
 template<class X> Matrix<X> feasibility_adat(const Matrix<X>& H, const Matrix<X>& A, const Vector<X>& D)
 {
     const SizeType m=A.row_size();
@@ -424,6 +454,7 @@ template<class X> Matrix<X> feasibility_adat(const Matrix<X>& H, const Matrix<X>
 
 
 
+/** @brief Represent a structured linear system for feasibility corrections. */
 template<class R>
 class ConstrainedFeasibilityMatrix {
     ConstrainedFeasibilityMatrix(const Vector<R>& x, const Vector<R>& z, const Matrix<R>& a, const Matrix<R>& h)
@@ -441,6 +472,7 @@ class ConstrainedFeasibilityMatrix {
     solve(const Vector<RR>& x, const Vector<RR>& yt, const Vector<RR>& z) const {
         Sinv=inverse(feasibility_adat(H,A,D));
         Vector<RR> rx=Z.solve(x);
+        /** @brief Multiply by the structured feasibility matrix. */
         Vector<RR> ryt=yt+feasibility_mul(A,rx-D*z);
         Vector<RR> rz=z;
         ryt=Sinv*ryt;
