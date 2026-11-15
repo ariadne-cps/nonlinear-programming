@@ -36,13 +36,14 @@
 #include "function/taylor_model.hpp"
 #include "geometry/box.hpp"
 #include "logging/logging.hpp"
-#include "numeric/numeric.hpp"
-
-#include "ariadne-testing.hpp"
+#include "logging/test_runner.hpp"
 #include "nonlinear-programming/nonlinear_interior_point_method.hpp"
 #include "nonlinear-programming/nonlinear_penalty_function_method.hpp"
 #include "nonlinear-programming/nonlinear_programming.hpp"
 #include "nonlinear-programming/nonlinear_programming.tpl.hpp"
+#include "numeric/numeric.hpp"
+
+#include "ariadne-testing.hpp"
 
 using namespace std;
 using namespace Ariadne;
@@ -3026,12 +3027,6 @@ class TestNonlinearHeaders : public Ariadne::Testing::ContextFixture {
 };
 
 int main(int argc, char** argv) {
-    // Run logging diagnostics for coverage without flooding the test reporter.
-#ifdef _WIN32
-    Logger::instance().redirect_to_file("NUL");
-#else
-    Logger::instance().redirect_to_file("/dev/null");
-#endif
     ARIADNE_TESTING_SUITE("test_nonlinear_programming");
     auto header = Ariadne::Testing::fixture_variant<TestNonlinearHeaders>(
         ariadne_test_suite, "headers");
@@ -3295,5 +3290,5 @@ int main(int argc, char** argv) {
     ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_domain_preconditions);
     ARIADNE_TESTING_ADD_VARIANT_TEST(interval, test_logging_diagnostics);
 
-    return ARIADNE_TESTING_RUN_TESTS_WITH_ARGS(argc, argv);
+    return Ariadne::Testing::run_logging_suite(ariadne_test_suite, argc, argv);
 }
