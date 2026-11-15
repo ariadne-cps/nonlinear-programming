@@ -37,13 +37,13 @@
 #include "geometry/box.hpp"
 #include "logging/logging.hpp"
 #include "logging/test_runner.hpp"
+#include "numeric/numeric.hpp"
+
+#include "ariadne-testing.hpp"
 #include "nonlinear-programming/nonlinear_interior_point_method.hpp"
 #include "nonlinear-programming/nonlinear_penalty_function_method.hpp"
 #include "nonlinear-programming/nonlinear_programming.hpp"
 #include "nonlinear-programming/nonlinear_programming.tpl.hpp"
-#include "numeric/numeric.hpp"
-
-#include "ariadne-testing.hpp"
 
 using namespace std;
 using namespace Ariadne;
